@@ -1,0 +1,33 @@
+{
+  "contractVersion": "0.1",
+  "kind": "artifact",
+  "title": "Pullback after a limit-up streak (China extension)",
+  "note": "Uses LIMIT_UP_DAYS from the ext.cn profile. Market rules are not removed from the spec, they are scoped: the same artifact on us_equity is rejected by AS007 because price limits do not exist there.",
+  "market": "cn_stock",
+  "timeframe": "5m",
+  "dsl": {
+    "version": 1,
+    "params": { "drawdownFactor": 0.65 },
+    "indicators": {
+      "streak": { "type": "LIMIT_UP_DAYS", "lookbackDays": 10, "limitDays": 3, "matchMode": "AT_LEAST" },
+      "dailyHigh": { "type": "HIGHEST", "in": { "ind": "high1d" }, "period": 10, "timeframe": "1d", "barPolicy": "CLOSED" },
+      "high1d": { "type": "PRICE", "field": "HIGH", "timeframe": "1d", "barPolicy": "CLOSED" },
+      "drawdownLine": { "type": "MUL", "left": { "ind": "dailyHigh" }, "right": { "ref": "drawdownFactor" } },
+      "price": { "type": "PRICE", "field": "CLOSE" },
+      "ema20": { "type": "EMA", "period": 20 }
+    },
+    "entry": {
+      "type": "AND",
+      "left": {
+        "type": "AND",
+        "left": { "type": "GT", "left": { "ind": "streak" }, "right": { "const": 0 } },
+        "right": { "type": "LTE", "left": { "ind": "price" }, "right": { "ind": "drawdownLine" } }
+      },
+      "right": { "type": "CROSS_UP", "left": { "ind": "price" }, "right": { "ind": "ema20" } }
+    },
+    "exit": { "type": "CROSS_DOWN", "left": { "ind": "price" }, "right": { "ind": "ema20" } }
+  },
+  "universe": { "mode": "ALL_MARKET" },
+  "riskProfile": { "maxSymbolExposurePct": 8, "maxTotalExposurePct": 60, "maxImpactSlippageBps": 30 },
+  "producer": { "kind": "HUMAN", "name": "example" }
+}

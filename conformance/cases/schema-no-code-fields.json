@@ -1,0 +1,67 @@
+{
+  "description": "Unknown top-level fields are rejected; there is no place for code in an artifact.",
+  "document": {
+    "contractVersion": "0.1",
+    "kind": "artifact",
+    "title": "EMA 20/60 crossover",
+    "note": "The smallest useful artifact: two indicators, one entry, one exit, a fixed symbol list.",
+    "market": "us_equity",
+    "timeframe": "1d",
+    "dsl": {
+      "version": 1,
+      "indicators": {
+        "fast": {
+          "type": "EMA",
+          "period": 20
+        },
+        "slow": {
+          "type": "EMA",
+          "period": 60
+        }
+      },
+      "entry": {
+        "type": "CROSS_UP",
+        "left": {
+          "ind": "fast"
+        },
+        "right": {
+          "ind": "slow"
+        },
+        "code": "import os"
+      },
+      "exit": {
+        "type": "CROSS_DOWN",
+        "left": {
+          "ind": "fast"
+        },
+        "right": {
+          "ind": "slow"
+        }
+      }
+    },
+    "universe": {
+      "mode": "SYMBOLS",
+      "symbols": [
+        "AAPL",
+        "MSFT",
+        "NVDA"
+      ]
+    },
+    "riskProfile": {
+      "maxSymbolExposurePct": 20,
+      "maxTotalExposurePct": 60
+    },
+    "producer": {
+      "kind": "HUMAN",
+      "name": "example"
+    },
+    "pythonCode": "print(1)"
+  },
+  "expect": {
+    "valid": false,
+    "errors": [
+      "SCHEMA"
+    ],
+    "warnings": []
+  }
+}

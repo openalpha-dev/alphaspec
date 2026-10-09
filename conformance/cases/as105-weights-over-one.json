@@ -1,0 +1,32 @@
+{
+  "description": "Weights that sum above 1.",
+  "document": {
+    "contractVersion": "0.1",
+    "kind": "score",
+    "asOf": "2026-09-30",
+    "market": "cn_stock",
+    "scoreName": "lgbm-v7",
+    "producer": {
+      "kind": "INSTITUTION",
+      "name": "example-desk",
+      "searchTrials": 1
+    },
+    "weights": [
+      {
+        "symbol": "600519.SH",
+        "weight": 0.7
+      },
+      {
+        "symbol": "000858.SZ",
+        "weight": 0.5
+      }
+    ]
+  },
+  "expect": {
+    "valid": false,
+    "errors": [
+      "AS105"
+    ],
+    "warnings": []
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "contractVersion": "0.1",
+  "kind": "artifact",
+  "title": "Channel breakout, then retest within 10 bars",
+  "note": "Temporal composition: SEQUENCE requires the breakout first and the successful retest afterwards. Level events (BREAK, RETEST) take any operand as the level, here a 20-day Donchian upper band.",
+  "market": "cn_stock",
+  "timeframe": "1d",
+  "dsl": {
+    "version": 1,
+    "params": {
+      "retestBars": 10
+    },
+    "indicators": {
+      "upper": {
+        "type": "DONCHIAN_UPPER",
+        "period": 20
+      }
+    },
+    "entry": {
+      "type": "SEQUENCE",
+      "first": {
+        "type": "BREAK",
+        "level": {
+          "ind": "upper"
+        },
+        "direction": "UP",
+        "minVolumeRatio": 1.5
+      },
+      "then": {
+        "type": "RETEST",
+        "level": {
+          "ind": "upper"
+        },
+        "direction": "UP",
+        "tolerancePct": 1.0
+      },
+      "bars": {
+        "ref": "retestBars"
+      }
+    },
+    "exit": {
+      "type": "BREAK",
+      "level": {
+        "ind": "upper"
+      },
+      "direction": "DOWN",
+      "tolerancePct": 3.0
+    }
+  },
+  "universe": {
+    "mode": "UNIVERSE",
+    "universeId": "csi300"
+  },
+  "producer": {
+    "kind": "HUMAN",
+    "name": "example"
+  }
+}

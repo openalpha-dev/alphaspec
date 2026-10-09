@@ -1,0 +1,17 @@
+{
+  "contractVersion": "0.1",
+  "kind": "score",
+  "asOf": "2026-09-30",
+  "market": "cn_stock",
+  "scoreName": "lgbm-v7",
+  "direction": "DESC",
+  "scores": [
+    { "symbol": "600519.SH", "score": 1.8423 },
+    { "symbol": "000858.SZ", "score": 1.5107 },
+    { "symbol": "601318.SH", "score": null },
+    { "symbol": "300750.SZ", "score": -0.9912 }
+  ],
+  "execution": { "topN": 30, "weighting": "SCORE_PROPORTIONAL", "universePolicy": "SUBMITTED",
+                 "riskProfile": { "maxSymbolExposurePct": 5, "maxTotalExposurePct": 80 } },
+  "producer": { "kind": "INSTITUTION", "name": "example-desk", "searchTrials": 1 }
+}

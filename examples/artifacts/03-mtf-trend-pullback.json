@@ -1,0 +1,25 @@
+{
+  "contractVersion": "0.1",
+  "kind": "artifact",
+  "title": "Daily trend filter, 15-minute pullback entry",
+  "note": "Multi-timeframe without look-ahead: the daily EMA is read with barPolicy CLOSED, i.e. only from completed daily bars. With LIVE, a backtest would see today's close at 10:00 (rule AS003 rejects that).",
+  "market": "hk_stock",
+  "timeframe": "15m",
+  "dsl": {
+    "version": 1,
+    "indicators": {
+      "dailyClose": { "type": "PRICE", "field": "CLOSE", "timeframe": "1d", "barPolicy": "CLOSED" },
+      "dailyEma": { "type": "EMA", "period": 50, "timeframe": "1d", "barPolicy": "CLOSED" },
+      "price": { "type": "PRICE", "field": "CLOSE" },
+      "ema20": { "type": "EMA", "period": 20 }
+    },
+    "entry": {
+      "type": "AND",
+      "left": { "type": "GT", "left": { "ind": "dailyClose" }, "right": { "ind": "dailyEma" } },
+      "right": { "type": "CROSS_UP", "left": { "ind": "price" }, "right": { "ind": "ema20" } }
+    },
+    "exit": { "type": "LT", "left": { "ind": "dailyClose" }, "right": { "ind": "dailyEma" } }
+  },
+  "universe": { "mode": "SYMBOLS", "symbols": ["00700.HK", "09988.HK"] },
+  "producer": { "kind": "HUMAN", "name": "example" }
+}

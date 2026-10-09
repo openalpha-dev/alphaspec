@@ -1,0 +1,36 @@
+name: release
+# Push a tag vX.Y.Z → test → build → publish to PyPI via Trusted Publishing (no API token stored).
+# One-time setup on pypi.org: add a "pending publisher" for project alphaspec pointing at this
+# repository, workflow release.yml, environment pypi.
+on:
+  push:
+    tags: ["v*"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e '.[dev]' build
+      - run: pytest -q
+      - name: tag matches package version
+        run: test "v$(python -c 'import alphaspec; print(alphaspec.__version__)')" = "${GITHUB_REF_NAME}"
+      - run: python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

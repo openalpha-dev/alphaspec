@@ -1,0 +1,25 @@
+{
+  "contractVersion": "0.1",
+  "kind": "artifact",
+  "title": "RSI mean reversion with named parameters",
+  "note": "Thresholds live in dsl.params and are referenced with {\"ref\": ...}. A parameter scan or an agent iterating on this artifact changes one number in one place, and the diff says exactly that.",
+  "market": "crypto_spot",
+  "timeframe": "1h",
+  "dsl": {
+    "version": 1,
+    "params": { "rsiPeriod": 14, "oversold": 28, "exitLevel": 55 },
+    "indicators": {
+      "rsi": { "type": "RSI", "period": { "ref": "rsiPeriod" } }
+    },
+    "entry": { "type": "CROSS_UP", "left": { "ind": "rsi" }, "right": { "ref": "oversold" } },
+    "exit": { "type": "GTE", "left": { "ind": "rsi" }, "right": { "ref": "exitLevel" } }
+  },
+  "universe": { "mode": "SYMBOLS", "symbols": ["BTCUSDT", "ETHUSDT"] },
+  "riskProfile": { "maxOrderNotional": 5000, "maxDailyOrders": 12 },
+  "producer": {
+    "kind": "AI_AGENT",
+    "name": "example-agent@0.1.0",
+    "modelId": "claude-opus-5-5",
+    "searchTrials": 64
+  }
+}

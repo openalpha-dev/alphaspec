@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "alphaspec"
+dynamic = ["version"]
+description = "The auditable contract between alpha and execution: JSON schemas, a validator and lint rules for declarative trading strategies."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [{ name = "OpenAlpha contributors" }]
+keywords = ["quant", "trading", "strategy", "dsl", "json-schema", "backtest", "ai-agent"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Office/Business :: Financial :: Investment",
+]
+dependencies = [
+  "jsonschema>=4.18",
+  "referencing>=0.30",
+]
+
+[project.urls]
+Homepage = "https://github.com/openalpha-dev/alphaspec"
+Documentation = "https://github.com/openalpha-dev/alphaspec#readme"
+Changelog = "https://github.com/openalpha-dev/alphaspec/blob/main/CHANGELOG.md"
+Schemas = "https://openalpha-dev.github.io/alphaspec/schema/0.1/"
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.2"]
+dev = ["pytest>=7", "mcp>=1.2"]
+
+[project.scripts]
+alphaspec = "alphaspec.cli:main"
+alphaspec-mcp = "alphaspec.mcp_server:main"
+
+[tool.hatch.version]
+path = "src/alphaspec/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/alphaspec"]
+
+# schema/, catalog/, examples/ and docs/ stay at the repo root so non-Python runtimes can consume
+# them directly; the wheel carries a copy under alphaspec/_data so an installed Agent Skill can
+# reach everything through the CLI without a checkout.
+[tool.hatch.build.targets.wheel.force-include]
+"schema" = "alphaspec/_data/schema"
+"catalog" = "alphaspec/_data/catalog"
+"examples" = "alphaspec/_data/examples"
+"docs" = "alphaspec/_data/docs"
+"skills" = "alphaspec/_data/skills"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

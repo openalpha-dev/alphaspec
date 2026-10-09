@@ -1,0 +1,77 @@
+{
+  "description": "LIMIT_UP_DAYS always runs on the primary series; a timeframe on it is ignored.",
+  "document": {
+    "contractVersion": "0.1",
+    "kind": "artifact",
+    "title": "EMA 20/60 crossover",
+    "note": "The smallest useful artifact: two indicators, one entry, one exit, a fixed symbol list.",
+    "market": "cn_stock",
+    "timeframe": "5m",
+    "dsl": {
+      "version": 1,
+      "indicators": {
+        "fast": {
+          "type": "EMA",
+          "period": 20
+        },
+        "slow": {
+          "type": "EMA",
+          "period": 60
+        },
+        "streak": {
+          "type": "LIMIT_UP_DAYS",
+          "limitDays": 2,
+          "timeframe": "1d"
+        }
+      },
+      "entry": {
+        "type": "AND",
+        "left": {
+          "type": "CROSS_UP",
+          "left": {
+            "ind": "fast"
+          },
+          "right": {
+            "ind": "slow"
+          }
+        },
+        "right": {
+          "type": "GT",
+          "left": {
+            "ind": "streak"
+          },
+          "right": {
+            "const": 0
+          }
+        }
+      },
+      "exit": {
+        "type": "CROSS_DOWN",
+        "left": {
+          "ind": "fast"
+        },
+        "right": {
+          "ind": "slow"
+        }
+      }
+    },
+    "universe": {
+      "mode": "ALL_MARKET"
+    },
+    "riskProfile": {
+      "maxSymbolExposurePct": 20,
+      "maxTotalExposurePct": 60
+    },
+    "producer": {
+      "kind": "HUMAN",
+      "name": "example"
+    }
+  },
+  "expect": {
+    "valid": true,
+    "errors": [],
+    "warnings": [
+      "AS008"
+    ]
+  }
+}

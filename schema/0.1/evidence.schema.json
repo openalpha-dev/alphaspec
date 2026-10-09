@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openalpha-dev.github.io/alphaspec/schema/0.1/evidence.schema.json",
+  "title": "AlphaSpec Execution Evidence",
+  "description": "What actually happened when a strategy ran: rejections, fills, slippage, risk hits, the ledger, and whether the pipeline ran at all. Every number states its caliber, because an unlabeled number is worse than none for an agent consuming it.",
+  "type": "object",
+  "required": ["contractVersion", "kind", "subject", "window", "caliber"],
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": { "$ref": "common.schema.json#/$defs/contractVersion" },
+    "kind": { "const": "evidence" },
+
+    "subject": {
+      "type": "object",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "strategy": { "type": "string" },
+        "artifact": { "type": "string" },
+        "account": { "type": "string" },
+        "mode": {
+          "enum": ["BACKTEST", "PAPER", "LIVE"],
+          "description": "The mode the orders actually ran in, derived from the account that holds the positions, not from configuration."
+        }
+      }
+    },
+
+    "window": {
+      "type": "object",
+      "required": ["from", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "format": "date" },
+        "to": { "type": "string", "format": "date" },
+        "timezone": { "type": "string", "description": "IANA zone of the market, e.g. Asia/Shanghai, America/New_York." }
+      }
+    },
+
+    "caliber": {
+      "type": "object",
+      "required": ["slippageBasis", "feeIncluded", "volumeUnit", "currency"],
+      "additionalProperties": false,
+      "properties": {
+        "slippageBasis": { "enum": ["VS_SIGNAL_PRICE", "VS_ARRIVAL_PRICE", "VS_VWAP"] },
+        "feeIncluded": { "type": "boolean", "description": "Whether pnl and average prices include fees." },
+        "priceSource": { "enum": ["TICK", "BAR_1M", "BAR_1D", "SNAPSHOT"] },
+        "volumeUnit": {
+          "enum": ["SHARE", "LOT", "CONTRACT"],
+          "description": "Quantities are in this unit. Derivatives quantities are contracts; notional = qty x price x multiplier."
+        },
+        "multiplierApplied": { "type": "boolean", "description": "Whether notionals and pnl already include the contract multiplier." },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3,5}$", "description": "Currency of every monetary field in this document." }
+      }
+    },
+
+    "rejects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "code", "count"],
+        "additionalProperties": false,
+        "properties": {
+          "category": { "enum": ["STRATEGY", "UNIVERSE", "RISK", "BROKER", "MARKET_DATA"] },
+          "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$", "description": "Runtime-specific reason code. Runtimes publish their code list." },
+          "count": { "type": "integer", "minimum": 0 },
+          "message": { "type": "string", "description": "Original message, not normalized." },
+          "hint": { "type": "string", "description": "What to change." }
+        }
+      }
+    },
+
+    "executionQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "orders": { "type": "integer", "minimum": 0 },
+        "fillRatePct": { "type": "number" },
+        "rejectRatePct": { "type": "number" },
+        "avgSlippageBps": { "type": "number" },
+        "p95SlippageBps": { "type": "number" },
+        "paperVsLiveDiffBps": { "type": "number", "description": "Average gap between paper and live fills for the same signals." }
+      }
+    },
+
+    "targetDeviation": {
+      "type": "array",
+      "description": "For score/weights submissions: where the actual portfolio differs from the target and why.",
+      "items": {
+        "type": "object",
+        "required": ["symbol", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "symbol": { "$ref": "common.schema.json#/$defs/symbol" },
+          "targetWeight": { "type": "number" },
+          "actualWeight": { "type": "number" },
+          "reason": {
+            "enum": ["LOT_ROUNDING", "PRICE_LIMIT", "SETTLEMENT_RULE", "RISK_REJECT", "MIN_FEE_FLOOR", "NOT_IN_UNIVERSE", "NO_PRICE", "HALTED", "OTHER"]
+          }
+        }
+      }
+    },
+
+    "riskHits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "count", "blocking"],
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string" },
+          "count": { "type": "integer", "minimum": 0 },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    },
+
+    "ledger": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ts", "symbol", "side", "qty", "price"],
+        "additionalProperties": false,
+        "properties": {
+          "ts": { "type": "string", "format": "date-time" },
+          "symbol": { "$ref": "common.schema.json#/$defs/symbol" },
+          "side": { "enum": ["BUY", "SELL"] },
+          "qty": { "type": "number" },
+          "price": { "type": "number" },
+          "fee": { "type": "number" },
+          "realizedPnl": { "type": "number" },
+          "trigger": { "type": "string", "description": "Why the order was placed: ENTRY, EXIT, STOP_LOSS, TAKE_PROFIT, REBALANCE ..." }
+        }
+      }
+    },
+
+    "pipeline": {
+      "type": "array",
+      "description": "Answers 'did it run when it should have', not only 'was the output right'.",
+      "items": {
+        "type": "object",
+        "required": ["stage", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "stage": { "type": "string" },
+          "status": { "enum": ["OK", "DEGRADED", "ABSENT", "FAILED"] },
+          "at": { "type": "string", "format": "date-time" },
+          "violations": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

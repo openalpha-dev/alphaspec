@@ -1,0 +1,39 @@
+name: pages
+# Serves the schemas at their $id URLs: https://openalpha-dev.github.io/alphaspec/schema/0.1/<kind>.schema.json
+# One-time setup: repository Settings → Pages → Source: GitHub Actions.
+on:
+  push:
+    branches: [main]
+    paths: ["schema/**", "catalog/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: assemble site
+        run: |
+          mkdir -p _site
+          cp -r schema catalog _site/
+          {
+            echo '<!doctype html><meta charset="utf-8"><title>AlphaSpec schemas</title>'
+            echo '<h1>AlphaSpec</h1><p>Contract schemas and indicator catalog. Source: <a href="https://github.com/openalpha-dev/alphaspec">openalpha-dev/alphaspec</a></p><ul>'
+            for f in schema/*/*.json catalog/indicators.json; do echo "<li><a href=\"$f\">$f</a></li>"; done
+            echo '</ul>'
+          } > _site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

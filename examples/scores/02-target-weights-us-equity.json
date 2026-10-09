@@ -1,0 +1,13 @@
+{
+  "contractVersion": "0.1",
+  "kind": "score",
+  "asOf": "2026-09-30",
+  "market": "us_equity",
+  "scoreName": "risk-parity-sleeve",
+  "weights": [
+    { "symbol": "SPY", "weight": 0.40 },
+    { "symbol": "TLT", "weight": 0.35 },
+    { "symbol": "GLD", "weight": 0.15 }
+  ],
+  "producer": { "kind": "HUMAN", "name": "example" }
+}

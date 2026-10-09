@@ -1,0 +1,42 @@
+{
+  "description": "The same symbol twice.",
+  "document": {
+    "contractVersion": "0.1",
+    "kind": "score",
+    "asOf": "2026-09-30",
+    "market": "cn_stock",
+    "scoreName": "lgbm-v7",
+    "direction": "DESC",
+    "scores": [
+      {
+        "symbol": "600519.SH",
+        "score": 1
+      },
+      {
+        "symbol": "600519.SH",
+        "score": 2
+      }
+    ],
+    "execution": {
+      "topN": 30,
+      "weighting": "SCORE_PROPORTIONAL",
+      "universePolicy": "SUBMITTED",
+      "riskProfile": {
+        "maxSymbolExposurePct": 5,
+        "maxTotalExposurePct": 80
+      }
+    },
+    "producer": {
+      "kind": "INSTITUTION",
+      "name": "example-desk",
+      "searchTrials": 1
+    }
+  },
+  "expect": {
+    "valid": false,
+    "errors": [
+      "AS101"
+    ],
+    "warnings": []
+  }
+}

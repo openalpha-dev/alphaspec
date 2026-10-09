@@ -1,0 +1,58 @@
+{
+  "description": "Zeros used for missing values.",
+  "document": {
+    "contractVersion": "0.1",
+    "kind": "score",
+    "asOf": "2026-09-30",
+    "market": "cn_stock",
+    "scoreName": "lgbm-v7",
+    "direction": "DESC",
+    "scores": [
+      {
+        "symbol": "600000.SH",
+        "score": 0
+      },
+      {
+        "symbol": "600001.SH",
+        "score": 0
+      },
+      {
+        "symbol": "600002.SH",
+        "score": 0
+      },
+      {
+        "symbol": "600003.SH",
+        "score": 1.0
+      },
+      {
+        "symbol": "600004.SH",
+        "score": 1.0
+      },
+      {
+        "symbol": "600005.SH",
+        "score": 1.0
+      }
+    ],
+    "execution": {
+      "topN": 30,
+      "weighting": "SCORE_PROPORTIONAL",
+      "universePolicy": "SUBMITTED",
+      "riskProfile": {
+        "maxSymbolExposurePct": 5,
+        "maxTotalExposurePct": 80
+      }
+    },
+    "producer": {
+      "kind": "INSTITUTION",
+      "name": "example-desk",
+      "searchTrials": 1
+    }
+  },
+  "expect": {
+    "valid": true,
+    "errors": [],
+    "warnings": [
+      "AS104"
+    ]
+  }
+}
