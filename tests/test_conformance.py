@@ -1,4 +1,4 @@
-"""Run every conformance case. Any runtime claiming AlphaSpec 0.1 support must
+"""Run every conformance case. Any runtime claiming support for a case's contractVersion must
 produce the same accept/reject decision and the same rule codes for these files."""
 import json
 from pathlib import Path

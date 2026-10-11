@@ -48,15 +48,15 @@ AlphaSpec 守的是那道边界：**跨进执行层的东西，必须是一份�
 
 | 档位 | 文档 | 适合谁 | 提交什么 |
 |---|---|---|---|
-| **L1 · Score** | [`score`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.1/score.schema.json) | 机构 ML 团队、因子研究员 | `(asOf, market, symbol, score)`，或者直接给目标权重 |
-| **L2 · Artifact** | [`artifact`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.1/artifact.schema.json) | 规则策略、AI agent | 一棵完整的规则树，加上参数、标的范围和风控设置 |
+| **L1 · Score** | [`score`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.2/score.schema.json) | 机构 ML 团队、因子研究员 | `(asOf, market, symbol, score)`，或者直接给目标权重 |
+| **L2 · Artifact** | [`artifact`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.2/artifact.schema.json) | 规则策略、AI agent | 一棵完整的规则树，加上参数、标的范围和风控设置 |
 
 两种回执，只由执行系统生成，提交方不能自己填：
 
 | 文档 | 回答什么问题 |
 |---|---|
-| [`gate-result`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.1/gate-result.schema.json) | 门禁过没过。绩效由执行系统**自己重算**，逐项列出判据 |
-| [`evidence`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.1/evidence.schema.json) | 在真实市场里发生了什么：拒单、滑点、成交、与目标持仓的偏差，每个数字都注明口径 |
+| [`gate-result`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.2/gate-result.schema.json) | 门禁过没过。绩效由执行系统**自己重算**，逐项列出判据 |
+| [`evidence`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.2/evidence.schema.json) | 在真实市场里发生了什么：拒单、滑点、成交、与目标持仓的偏差，每个数字都注明口径 |
 
 回执才是重点。研究端看得到行情、新闻和研报，却看不到一笔委托有没有被拒、付了多少滑点、
 组合离目标持仓偏了多远——这些只有执行系统知道，而且只有当它用研究端读得懂的格式说出来，才算数。
@@ -77,7 +77,7 @@ flowchart LR
 
 ```json
 {
-  "contractVersion": "0.1",
+  "contractVersion": "0.2",
   "kind": "artifact",
   "title": "RSI 超卖反弹 + 站上 60 日线",
   "market": "cn_stock",
@@ -94,6 +94,8 @@ flowchart LR
       "right": { "type": "GT",       "left": { "ind": "close" }, "right": { "ind": "ma60" } } },
     "exit":  { "type": "GTE", "left": { "ind": "rsi" }, "right": { "const": 70 } }
   },
+  "exits":  { "stopLossPct": 8, "noNewHighDays": 20 },
+  "sizing": { "positionMode": "FIXED_PCT", "targetPctPerOrder": 20 },
   "universe": { "mode": "SYMBOLS", "symbols": ["600519.SH", "000333.SZ"] },
   "producer": { "kind": "AI_AGENT", "name": "my-agent@0.1", "searchTrials": 3 }
 }
@@ -260,9 +262,11 @@ docs/                字段语义、检查规则、市场、运行时接口
 
 ## 版本
 
-每份文档都带 `contractVersion`，执行系统可以拒绝它不认识的版本；不兼容的改动会提升契约版本号。
+每份文档都带 `contractVersion`，执行系统可以拒绝它不认识的版本。版本只做加法、各有一份 schema 目录，
+文档按自己声明的版本校验。0.2 加入交易设置（`exits` 止盈止损、`sizing` 仓位、`execution` 成交时点），
+路线图见 [docs/ROADMAP.md](https://github.com/openalpha-dev/alphaspec/blob/main/docs/ROADMAP.md)。
 Schema 发布在各自的 `$id` 地址，例如
-`https://openalpha-dev.github.io/alphaspec/schema/0.1/artifact.schema.json`。
+`https://openalpha-dev.github.io/alphaspec/schema/0.2/artifact.schema.json`。
 
 ## 许可证
 

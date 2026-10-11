@@ -92,7 +92,8 @@ search luck from signal.
 ### AS013
 **No exit rule** · warning
 
-Positions close only through stop rules or rebalancing.
+Neither `dsl.exit` nor an `exits` block (contract 0.2) is present, so positions close only
+through rebalancing or the runtime's own risk limits.
 
 ### AS014
 **Intraday indicator on a too-coarse primary timeframe** · error
@@ -104,6 +105,27 @@ daily strategy there is nothing inside the bar to measure.
 **Indicator defined but never used** · warning
 
 Usually a leftover from editing, or an entry/exit rule that references the wrong alias.
+
+### AS016
+**Trailing-stop activation without a trailing stop** · warning
+
+`exits.trailingArmProfitPct` sets the gain at which a trailing stop starts following the
+price. Without `exits.trailingStopPct` there is no trailing stop to start, and the field
+does nothing.
+
+### AS017
+**Entry size above the per-symbol exposure cap** · warning
+
+`sizing.targetPctPerOrder` is larger than `riskProfile.maxSymbolExposurePct`. The runtime
+cuts every entry to the cap, so a document that reads "20% per position" trades 10%.
+Only checked for `positionMode: FIXED_PCT`; under `ATR_RISK` the number is a risk budget.
+
+### AS018
+**Pyramiding cap leaves no room for an add-on** · warning
+
+With `FIXED_PCT` sizing every add-on is the same size as the entry. If
+`sizing.scaleIn.maxTotalPct` is below twice `targetPctPerOrder`, the first add-on already
+exceeds the cap and is skipped, so the strategy never pyramids.
 
 ## Score rules
 

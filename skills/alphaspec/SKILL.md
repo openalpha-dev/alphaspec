@@ -1,6 +1,6 @@
 ---
 name: alphaspec
-description: Write, fix, validate and submit AlphaSpec documents — declarative trading-strategy artifacts (a rule tree of indicators with entry/exit conditions, universe and risk settings) and model score submissions — and run them on an AlphaSpec runtime for backtest, gate and paper trading. Use when asked to turn a trading idea into a strategy, write or edit a strategy as JSON/DSL, explain an AlphaSpec validation error (SCHEMA, AS001–AS105), or submit / evaluate / promote a strategy.
+description: Write, fix, validate and submit AlphaSpec documents — declarative trading-strategy artifacts (a rule tree of indicators with entry/exit conditions, universe and risk settings) and model score submissions — and run them on an AlphaSpec runtime for backtest, gate and paper trading. Use when asked to turn a trading idea into a strategy, write or edit a strategy as JSON/DSL, add stops, position sizing or fill timing, explain an AlphaSpec validation error (SCHEMA, AS001–AS105), or submit / evaluate / promote a strategy.
 ---
 
 # AlphaSpec
@@ -61,6 +61,25 @@ If you have no shell but the `alphaspec` MCP server is connected, use its tools 
 - Put anything tunable in `dsl.params` and reference it with `{"ref": …}`.
 - Symbols on `cn_*` / `hk_*` carry the venue suffix: `600000.SH`, `000001.SZ`, `00700.HK` (AS011).
 - Indicators of profile `ext.cn` (price-limit streaks, sealed boards, call auction) exist only on `cn_*` markets.
+
+## Trade settings (contract 0.2)
+
+Stops, sizing and fill timing go in three optional top-level blocks — not in the rule tree. Set `"contractVersion": "0.2"` to use them.
+
+```json
+"exits":     { "stopLossPct": 8, "trailingStopPct": 10, "trailingArmProfitPct": 15, "noNewHighDays": 20 },
+"sizing":    { "positionMode": "FIXED_PCT", "targetPctPerOrder": 20, "maxHoldings": 5 },
+"execution": { "fillTiming": "NEXT_OPEN" }
+```
+
+- Other exits: `takeProfitPct`, `atrStopMultiplier`, `atrTakeProfitMultiplier` (ATR 14), `minHoldDays` (calendar days during which stops do not fire). Percentages are 0–100.
+- Leave a field out to turn that exit off; never write `0` (rejected).
+- **Always write `sizing`.** Without it the reference runtime sizes entries by its account limits (up to 60% of equity per symbol), which rarely matches what the user has in mind.
+- Keep `sizing.targetPctPerOrder` ≤ `riskProfile.maxSymbolExposurePct` (AS017).
+- Volatility sizing: `"positionMode": "ATR_RISK", "targetPctPerOrder": 1` = risk 1% of equity per ATR(14).
+- Pyramiding: `"scaleIn": {"maxAddOns": 3, "spacingAtr": 0.5, "maxTotalPct": 40}` inside `sizing`; keep `maxTotalPct` ≥ 2 × `targetPctPerOrder` under FIXED_PCT (AS018).
+- Not available, rejected if written: fixed share counts, averaging down. If the user asks for one, say so instead of approximating it.
+- Full field semantics: `alphaspec docs spec` (section 4a); example: `alphaspec examples 06-trend`.
 
 ## Producer
 

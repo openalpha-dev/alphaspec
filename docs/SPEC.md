@@ -1,6 +1,6 @@
-# AlphaSpec 0.1 — semantics
+# AlphaSpec 0.2 — semantics
 
-The JSON Schemas in `schema/0.1/` define the shape of each document. This page defines
+The JSON Schemas in `schema/<version>/` define the shape of each document. This page defines
 what the fields **mean**, where the shape alone cannot. Where this page and a runtime
 disagree, the runtime is non-compliant.
 
@@ -16,6 +16,9 @@ Every document has `contractVersion` and `kind`.
 | `evidence` | runtime | what happened when it ran |
 
 A runtime must refuse a `contractVersion` it does not implement rather than guess.
+Versions are additive: a document is validated against the schemas of the version it
+declares, so a `0.1` document carrying `0.2` fields is rejected, not half-read. Use `0.2`
+when you need trade settings (section 4a).
 
 ## 2. Time
 
@@ -74,8 +77,53 @@ Monetary fields are in `caliber.currency`.
   N bars), `DAY_LATCH` (stays true for the rest of the session once true).
 - Level events: `TOUCH BREAK RECLAIM RETEST HOLD` against any operand as `level`.
 
-Entry fires on the bar where `entry` evaluates true; how and at what price the order is
-placed is the runtime's execution model and is reported in evidence, not specified here.
+Entry fires on the bar where `entry` evaluates true. Position size, fill timing and
+protective exits are set in section 4a; the rest of the execution model (slippage, costs,
+partial fills) is the runtime's and is reported in evidence.
+
+## 4a. Trade settings (0.2: `exits`, `sizing`, `execution`)
+
+`dsl.entry` / `dsl.exit` say **when** to trade. These three optional blocks say how a
+position is managed once it exists. Field names are the ones visual strategy builders on the
+reference runtime already use, so an exported strategy and a hand-written one look the same.
+
+**`exits`** — evaluated on each bar's close, long positions, in addition to `dsl.exit`.
+Whichever fires first closes the whole position.
+
+| field | closes when |
+|---|---|
+| `stopLossPct` | close ≤ entry × (1 − p/100) |
+| `takeProfitPct` | close ≥ entry × (1 + p/100) |
+| `trailingStopPct` | close ≤ highest close since entry × (1 − p/100) |
+| `trailingArmProfitPct` | (modifies the trailing stop) it only starts once the gain reached p%; 0 = from entry |
+| `atrStopMultiplier` | close ≤ entry − k × ATR(14) |
+| `atrTakeProfitMultiplier` | close ≥ entry + k × ATR(14) |
+| `noNewHighDays` | n trading days pass without a new highest close since entry |
+| `minHoldDays` | (modifies all of the above) none fires within n **calendar** days of entry; `dsl.exit` still does |
+
+- Omit a field to leave that exit off. `0` is rejected for the on/off fields: one runtime's
+  "disabled" is another's "stop immediately".
+- `minHoldDays` counts calendar days on every timeframe: 3 on a 5m strategy is three days.
+
+**`sizing`** — how large each position is and how many are held.
+
+| field | meaning |
+|---|---|
+| `positionMode` | `FIXED_PCT` (default): each entry buys `targetPctPerOrder`% of current equity. `ATR_RISK`: each entry is sized so one ATR(14) against it costs `targetPctPerOrder`% of equity; no entry while ATR cannot be computed |
+| `targetPctPerOrder` | the percentage above (required when `sizing` is present) |
+| `maxHoldings` | at most n symbols held at once; buys already queued count as held, so signals on the same bar cannot overshoot; further entries are skipped |
+| `scaleIn` | pyramiding: `{maxAddOns, spacingAtr, maxTotalPct}` — add to a winner each time the close is `spacingAtr` × ATR(14) above the last buy, at most `maxAddOns` times; an add-on that would take the symbol above `maxTotalPct`% of equity is skipped |
+
+Equity is cash plus the market value of all positions. Every buy rounds down to the market's
+lot and is capped by `riskProfile.maxSymbolExposurePct` and by cash. Without a `sizing`
+block the runtime applies its own default, which a runtime must document (the reference
+runtime's is in RUNTIME_API.md); write the block whenever position size matters.
+
+**`execution`** — `fillTiming`: `NEXT_OPEN` (default) confirms the signal on the bar's close
+and fills at the next bar's open; `BAR_CLOSE` fills at the signal bar's close.
+
+**Not in 0.2, rejected if present**: fixed share counts, averaging down (adding as the price
+falls), add-ons spaced in percent rather than ATR.
 
 ## 5. Gates
 

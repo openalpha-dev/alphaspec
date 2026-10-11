@@ -28,6 +28,9 @@ RULES: dict[str, str] = {
     "AS013": "No exit rule",
     "AS014": "Intraday indicator on a too-coarse primary timeframe",
     "AS015": "Indicator defined but never used",
+    "AS016": "Trailing-stop activation without a trailing stop",
+    "AS017": "Entry size above the per-symbol exposure cap",
+    "AS018": "Pyramiding cap leaves no room for an add-on",
     "AS101": "Duplicate symbol in submission",
     "AS102": "Every score is null",
     "AS103": "asOf is in the future",
@@ -190,15 +193,45 @@ def _artifact(doc: dict[str, Any]) -> Iterator[Issue]:
                      "tick strategies are evaluated per market-data frame; that dimension does not exist "
                      "in bar history, so bar backtests will refuse them")
 
-    if "exit" not in dsl:
+    exits: dict[str, Any] = doc.get("exits") or {}
+    if "exit" not in dsl and not exits:
         yield _issue("AS013", "warning", "/dsl",
-                     "no exit rule: positions close only through stop rules or rebalancing")
+                     "no exit rule and no exits block: positions close only through rebalancing",
+                     "add dsl.exit or an exits block (stop loss, trailing stop, ...)")
+
+    yield from _trade_settings(doc, exits)
 
     universe = doc.get("universe") or {}
     for i, sym in enumerate(universe.get("symbols", [])):
         yield from _check_symbol(market, sym, f"/universe/symbols/{i}")
 
     yield from _check_producer(doc["producer"], "/producer")
+
+
+def _trade_settings(doc: dict[str, Any], exits: dict[str, Any]) -> Iterator[Issue]:
+    if "trailingArmProfitPct" in exits and "trailingStopPct" not in exits:
+        yield _issue("AS016", "warning", "/exits/trailingArmProfitPct",
+                     "trailingArmProfitPct only says when a trailing stop starts; without trailingStopPct "
+                     "there is nothing to start",
+                     "add trailingStopPct, or remove trailingArmProfitPct")
+
+    sizing: dict[str, Any] = doc.get("sizing") or {}
+    fixed_pct = sizing.get("positionMode", "FIXED_PCT") == "FIXED_PCT"
+    per_order = sizing.get("targetPctPerOrder")
+    cap = (doc.get("riskProfile") or {}).get("maxSymbolExposurePct")
+    # Under ATR_RISK targetPctPerOrder is a risk budget, not a position size; nothing to compare.
+    if fixed_pct and per_order is not None and cap is not None and per_order > cap:
+        yield _issue("AS017", "warning", "/sizing/targetPctPerOrder",
+                     f"each entry asks for {per_order}% of equity but riskProfile.maxSymbolExposurePct caps a "
+                     f"symbol at {cap}%; every entry will be cut to {cap}%",
+                     "make them agree so the backtest sizes positions the way you read the document")
+
+    total = (sizing.get("scaleIn") or {}).get("maxTotalPct")
+    if fixed_pct and per_order is not None and total is not None and total < 2 * per_order:
+        yield _issue("AS018", "warning", "/sizing/scaleIn/maxTotalPct",
+                     f"the first entry already takes {per_order}% and each add-on another {per_order}%; "
+                     f"a {total}% cap leaves no room for a single add-on",
+                     f"raise maxTotalPct to at least {2 * per_order}, or drop scaleIn")
 
 
 def _cycles(graph: dict[str, set[str]]) -> Iterator[Issue]:

@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.0 — 2026-10-11
+
+- Contract 0.2 (`schema/0.2/`): trade settings in three optional artifact blocks.
+  - `exits`: stop loss, take profit, trailing stop with activation, ATR stop / take profit, minimum holding days
+    (calendar days on every timeframe), no-new-high exit.
+  - `sizing`: `FIXED_PCT` or `ATR_RISK` per entry, `maxHoldings`, pyramiding `scaleIn`.
+  - `execution`: fill timing (`NEXT_OPEN` / `BAR_CLOSE`).
+  Semantics in SPEC §4a.
+- Versions are additive: the validator accepts 0.1 and 0.2 and checks each document against the schemas of the
+  version it declares. `CONTRACT_VERSION` is now `"0.2"`; `SUPPORTED_VERSIONS` lists both.
+- New lint rules AS016 (trailing-stop activation without a trailing stop), AS017 (entry size above the per-symbol
+  cap) and AS018 (pyramiding cap leaves no room for an add-on). AS013 no longer fires when an `exits` block closes
+  positions.
+- Example `06-trend-with-trade-settings`.
+- RUNTIME_API documents the reference runtime's default sizing when a document has no `sizing` block.
+- Reference runtime: portfolio backtests (used by `evaluate`) now honour holding caps, ATR risk sizing and
+  pyramiding, and size fixed-fraction entries on equity rather than remaining cash. Before this release those
+  settings were silently ignored there, which is why they were not in 0.1.
+
 ## 0.1.0 — 2026-10-09
 
 - Contract 0.1 drafts: `artifact`, `score`, `gate-result`, `evidence`, shared `common` definitions.

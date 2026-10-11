@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openalpha-dev.github.io/alphaspec/schema/0.2/common.schema.json",
+  "title": "AlphaSpec common definitions",
+  "$defs": {
+    "contractVersion": {
+      "const": "0.2",
+      "description": "Contract version. Every document carries it so a runtime can refuse what it does not understand instead of guessing."
+    },
+
+    "marketId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Market identifier, lower snake case (e.g. cn_stock, hk_stock, us_equity, crypto_spot). The registry of known ids lives in docs/MARKETS.md; runtimes may support a subset and must reject ids they do not know.",
+      "examples": ["cn_stock", "cn_etf", "cn_future", "cn_option", "cn_convbond", "hk_stock", "us_equity", "crypto_spot"]
+    },
+
+    "timeframe": {
+      "type": "string",
+      "enum": ["tick", "1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"],
+      "description": "Bar period. Canonical spellings only: '1h' not '60m'. 'tick' means event-driven evaluation on every market-data frame and cannot be bar-backtested."
+    },
+
+    "symbol": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Instrument code as the market spells it. For markets where the venue disambiguates the code (cn_*, hk_stock) the venue suffix is part of the identity: 600000.SH, 00700.HK. A bare code there is a different series, not a shorthand."
+    },
+
+    "number": {
+      "description": "A scalar setting: a literal number, {\"const\": n}, or a reference to a key in dsl.params.",
+      "oneOf": [
+        { "type": "number" },
+        { "type": "object", "required": ["const"], "additionalProperties": false, "properties": { "const": { "type": "number" } } },
+        { "$ref": "#/$defs/paramRef" }
+      ]
+    },
+
+    "paramRef": {
+      "type": "object",
+      "required": ["ref"],
+      "additionalProperties": false,
+      "properties": { "ref": { "type": "string", "minLength": 1 } }
+    },
+
+    "producer": {
+      "type": "object",
+      "required": ["kind", "name"],
+      "additionalProperties": false,
+      "description": "Who produced this document and how. Needed for multiple-testing correction and for diffing iterations.",
+      "properties": {
+        "kind": { "type": "string", "enum": ["HUMAN", "AI_AGENT", "INSTITUTION", "FACTOR_MINER"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 200, "description": "Tool, agent or team name with version, e.g. my-agent@0.3.1." },
+        "modelId": { "type": "string", "description": "Model identifier when kind=AI_AGENT." },
+        "searchTrials": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How many candidates were evaluated before this one was submitted. Input to multiple-testing correction (deflated Sharpe). Required for AI_AGENT and FACTOR_MINER. Under-reporting loosens the gate; runtimes should cross-check it against their own call logs."
+        },
+        "parent": { "type": "string", "description": "Identifier of the previous iteration, for diffs." }
+      }
+    },
+
+    "riskProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-strategy risk overrides. Anything omitted inherits the runtime's account-level settings. Percentages are 0-100, notionals are in the instrument's quote currency.",
+      "properties": {
+        "maxOrderQty": { "type": "number", "exclusiveMinimum": 0 },
+        "maxOrderNotional": { "type": "number", "exclusiveMinimum": 0 },
+        "maxDailyOrders": { "type": "integer", "minimum": 1 },
+        "maxDailyNotional": { "type": "number", "exclusiveMinimum": 0 },
+        "maxPositionQtyPerSymbol": { "type": "number", "exclusiveMinimum": 0 },
+        "maxTotalExposurePct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "maxSymbolExposurePct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "maxIndustryExposurePct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "maxThemeExposurePct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "maxIndustryExposurePctMap": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 100 } },
+        "maxThemeExposurePctMap": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 100 } },
+        "maxImpactSlippageBps": { "type": "number", "minimum": 0 },
+        "maxImpactBlockOnInsufficientDepth": { "type": "boolean" },
+        "portfolioMaxDailyNotional": { "type": "number", "exclusiveMinimum": 0 },
+        "optionQuoteMaxAgeSeconds": { "type": "integer", "minimum": 0 },
+        "optionQuoteMaxSpreadBps": { "type": "number", "minimum": 0 },
+        "optionMinQuoteSize": { "type": "number", "minimum": 0 }
+      }
+    },
+
+    "direction": {
+      "type": "string",
+      "enum": ["ASC", "DESC"],
+      "description": "Ranking direction. DESC = higher is better. Required with no default: a flipped direction raises no error, it just loses money for a long time."
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openalpha-dev.github.io/alphaspec/schema/0.2/score.schema.json",
+  "title": "AlphaSpec Score Submission (L1)",
+  "description": "Cross-sectional output of any model (pandas, LightGBM, PyTorch, an LLM pipeline) handed to an execution runtime. You keep your research stack; the runtime handles sizing, rebalancing, risk, execution and the ledger. Carries either 'scores' (the runtime ranks and weights) or 'weights' (portfolio construction already done).",
+  "type": "object",
+  "required": ["contractVersion", "kind", "asOf", "market", "scoreName", "producer"],
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": { "$ref": "common.schema.json#/$defs/contractVersion" },
+    "kind": { "const": "score" },
+    "asOf": {
+      "type": "string",
+      "format": "date",
+      "description": "The last trading day whose information was used, in the market's local calendar. A score with asOf=T may use T's close and nothing later, and is executed no earlier than the next session. This is where look-ahead enters if anywhere."
+    },
+    "market": { "$ref": "common.schema.json#/$defs/marketId" },
+    "scoreName": { "type": "string", "minLength": 1, "maxLength": 120, "description": "Model or signal name. Submissions with the same scoreName form one time series." },
+    "direction": { "$ref": "common.schema.json#/$defs/direction" },
+
+    "scores": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["symbol", "score"],
+        "additionalProperties": false,
+        "properties": {
+          "symbol": { "$ref": "common.schema.json#/$defs/symbol" },
+          "score": {
+            "type": ["number", "null"],
+            "description": "null = no valid score today (halted, missing data). Never use 0 for 'unknown': 0 is a real rank position."
+          }
+        }
+      }
+    },
+
+    "weights": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Target portfolio weights in [0,1]. Sum must be <= 1; the remainder is cash.",
+      "items": {
+        "type": "object",
+        "required": ["symbol", "weight"],
+        "additionalProperties": false,
+        "properties": {
+          "symbol": { "$ref": "common.schema.json#/$defs/symbol" },
+          "weight": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional portfolio-construction settings. Omitted fields use the runtime defaults.",
+      "properties": {
+        "topN": { "type": "integer", "minimum": 1 },
+        "weighting": { "enum": ["EQUAL", "SCORE_PROPORTIONAL", "INV_VOL"] },
+        "universePolicy": {
+          "enum": ["SUBMITTED", "INTERSECT_UNIVERSE"],
+          "description": "SUBMITTED: trade only from the submitted symbols. INTERSECT_UNIVERSE: intersect with the runtime-side universe; symbols dropped by the intersection must be reported back as evidence, never silently discarded."
+        },
+        "riskProfile": { "$ref": "common.schema.json#/$defs/riskProfile" }
+      }
+    },
+
+    "producer": { "$ref": "common.schema.json#/$defs/producer" }
+  },
+
+  "oneOf": [
+    { "required": ["scores", "direction"], "not": { "required": ["weights"] } },
+    {
+      "required": ["weights"],
+      "not": { "anyOf": [ { "required": ["scores"] } ] },
+      "properties": { "execution": { "properties": { "topN": false, "weighting": false } } }
+    }
+  ]
+}

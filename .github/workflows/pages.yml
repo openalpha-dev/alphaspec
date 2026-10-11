@@ -1,5 +1,5 @@
 name: pages
-# Serves the schemas at their $id URLs: https://openalpha-dev.github.io/alphaspec/schema/0.1/<kind>.schema.json
+# Serves the schemas at their $id URLs: https://openalpha-dev.github.io/alphaspec/schema/<version>/<kind>.schema.json
 # One-time setup: repository Settings → Pages → Source: GitHub Actions.
 on:
   push:

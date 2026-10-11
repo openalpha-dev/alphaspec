@@ -1,0 +1,67 @@
+{
+  "description": "Under ATR_RISK, targetPctPerOrder is a risk budget, not a position size, so it is not compared with the per-symbol cap.",
+  "document": {
+    "contractVersion": "0.2",
+    "kind": "artifact",
+    "title": "EMA 20/60 crossover",
+    "note": "The smallest useful artifact: two indicators, one entry, one exit, a fixed symbol list.",
+    "market": "us_equity",
+    "timeframe": "1d",
+    "dsl": {
+      "version": 1,
+      "indicators": {
+        "fast": {
+          "type": "EMA",
+          "period": 20
+        },
+        "slow": {
+          "type": "EMA",
+          "period": 60
+        }
+      },
+      "entry": {
+        "type": "CROSS_UP",
+        "left": {
+          "ind": "fast"
+        },
+        "right": {
+          "ind": "slow"
+        }
+      },
+      "exit": {
+        "type": "CROSS_DOWN",
+        "left": {
+          "ind": "fast"
+        },
+        "right": {
+          "ind": "slow"
+        }
+      }
+    },
+    "universe": {
+      "mode": "SYMBOLS",
+      "symbols": [
+        "AAPL",
+        "MSFT",
+        "NVDA"
+      ]
+    },
+    "riskProfile": {
+      "maxSymbolExposurePct": 20,
+      "maxTotalExposurePct": 60
+    },
+    "producer": {
+      "kind": "HUMAN",
+      "name": "example"
+    },
+    "sizing": {
+      "positionMode": "ATR_RISK",
+      "targetPctPerOrder": 30
+    }
+  },
+  "expect": {
+    "valid": true,
+    "errors": [],
+    "warnings": []
+  }
+}

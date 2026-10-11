@@ -1,0 +1,28 @@
+{
+  "contractVersion": "0.2",
+  "kind": "artifact",
+  "title": "EMA trend with stops and sizing",
+  "note": "Contract 0.2: the signal says when to enter; exits, sizing and execution say how the position is managed. Entry on a 20/60 EMA cross, out on the reverse cross, a fixed 8% stop, a 10% trailing stop that starts after a 15% gain, and a time exit after 20 days without a new high. Each entry is 20% of equity, at most four held at once, filled at the next open.",
+  "market": "cn_stock",
+  "timeframe": "1d",
+  "dsl": {
+    "version": 1,
+    "indicators": {
+      "fast": { "type": "EMA", "period": 20 },
+      "slow": { "type": "EMA", "period": 60 }
+    },
+    "entry": { "type": "CROSS_UP", "left": { "ind": "fast" }, "right": { "ind": "slow" } },
+    "exit": { "type": "CROSS_DOWN", "left": { "ind": "fast" }, "right": { "ind": "slow" } }
+  },
+  "exits": {
+    "stopLossPct": 8,
+    "trailingStopPct": 10,
+    "trailingArmProfitPct": 15,
+    "noNewHighDays": 20
+  },
+  "sizing": { "positionMode": "FIXED_PCT", "targetPctPerOrder": 20, "maxHoldings": 4 },
+  "execution": { "fillTiming": "NEXT_OPEN" },
+  "universe": { "mode": "SYMBOLS", "symbols": ["600519.SH", "000858.SZ", "300750.SZ", "601318.SH", "600036.SH"] },
+  "riskProfile": { "maxSymbolExposurePct": 25 },
+  "producer": { "kind": "HUMAN", "name": "example" }
+}

@@ -14,7 +14,7 @@ prefix.
 
 | Method & path | Success | Other responses |
 |---|---|---|
-| `GET /whoami` | 200 identity, contract version, what the key can and cannot do | 401 invalid / revoked / expired key |
+| `GET /whoami` | 200 identity, `contractVersion` (latest) and `contractVersions` (all accepted), what the key can and cannot do | 401 invalid / revoked / expired key |
 | `POST /artifacts` — body: an `artifact` document | 201 `{artifactId, warnings}` | 422 `{issues}` (same codes as the local validator) · 400 unusable universe |
 | `GET /artifacts` | 200 your submissions, newest first, with the latest verdict | |
 | `POST /artifacts/{id}/evaluate` | 202 `{evaluationId, status}` | 429 daily evaluation quota used up · 503 queue full |
@@ -52,6 +52,20 @@ change measure.
   out-of-sample test.
 - `GATE_LOOKAHEAD` — the structural look-ahead checks passed at intake.
 
+### Trade settings used by the evaluation
+
+The evaluation backtest and the promoted strategy use the same `exits`, `sizing` and
+`execution` (contract 0.2). Fields you leave out:
+
+- `exits`: off. No stop is added for you.
+- `execution.fillTiming`: `NEXT_OPEN`.
+- `sizing`: **the reference runtime's account default, which is not a fixed fraction**: each
+  entry buys as much as the account's per-order notional limit, the per-symbol exposure cap
+  (60% of equity unless `riskProfile.maxSymbolExposurePct` says otherwise) and available cash
+  allow. With a handful of symbols that concentrates the book in the first two or three
+  signals. Always send a `sizing` block if position size matters to your result — it usually
+  does.
+
 "Out-of-sample" here means *chosen by the platform*, not *unseen at submission*: recent
 market data is public. The only truly unseen period is the one after you submit, which is
 what paper trading is for.
@@ -64,7 +78,8 @@ account. It is created **disabled**; you start it yourself in the runtime's UI.
 The reference runtime stores strategies with plain values only: on intake, `dsl.params` is
 inlined (`{"ref": "x"}` becomes the value, or `{"const": value}` where an operand is expected)
 and dropped. The promoted strategy therefore carries no `params`; your submitted document, with
-its parameters, stays attached to the artifact.
+its parameters, stays attached to the artifact. Trade settings are carried over unchanged and show
+up in the runtime's strategy builder as its stop, position-size and fill-timing settings.
 
 ## Python
 
