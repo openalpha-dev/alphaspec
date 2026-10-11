@@ -99,11 +99,14 @@ Whichever fires first closes the whole position.
 | `atrStopMultiplier` | close ≤ entry − k × ATR(14) |
 | `atrTakeProfitMultiplier` | close ≥ entry + k × ATR(14) |
 | `noNewHighDays` | n trading days pass without a new highest close since entry |
-| `minHoldDays` | (modifies all of the above) none fires within n **calendar** days of entry; `dsl.exit` still does |
+| `minHoldDays` | (modifies everything, `dsl.exit` included) nothing closes the position until n **trading days** after entry |
 
 - Omit a field to leave that exit off. `0` is rejected for the on/off fields: one runtime's
   "disabled" is another's "stop immediately".
-- `minHoldDays` counts calendar days on every timeframe: 3 on a 5m strategy is three days.
+- `minHoldDays` counts trading days in the market's calendar: the entry day is day 0, weekends and
+  holidays do not count, and the meaning is the same on every timeframe (3 on a 5m strategy is three
+  trading days). It holds back rule exits too: its purpose is to keep a fresh position from being
+  shaken out by short-term noise. Leave it out if the strategy should be free to exit at once.
 
 **`sizing`** — how large each position is and how many are held.
 
@@ -112,7 +115,7 @@ Whichever fires first closes the whole position.
 | `positionMode` | `FIXED_PCT` (default): each entry buys `targetPctPerOrder`% of current equity. `ATR_RISK`: each entry is sized so one ATR(14) against it costs `targetPctPerOrder`% of equity; no entry while ATR cannot be computed |
 | `targetPctPerOrder` | the percentage above (required when `sizing` is present) |
 | `maxHoldings` | at most n symbols held at once; buys already queued count as held, so signals on the same bar cannot overshoot; further entries are skipped |
-| `scaleIn` | pyramiding: `{maxAddOns, spacingAtr, maxTotalPct}` — add to a winner each time the close is `spacingAtr` × ATR(14) above the last buy, at most `maxAddOns` times; an add-on that would take the symbol above `maxTotalPct`% of equity is skipped |
+| `scaleIn` | pyramiding: `{maxAddOns, spacingAtr, maxTotalPct}` — add to a winner each time the close is `spacingAtr` × ATR(14) above the last buy, at most `maxAddOns` times; an add-on that would take the symbol above `maxTotalPct`% of equity is skipped; filled per `execution.fillTiming`, never on a bar that closes the position |
 
 Equity is cash plus the market value of all positions. Every buy rounds down to the market's
 lot and is capped by `riskProfile.maxSymbolExposurePct` and by cash. Without a `sizing`

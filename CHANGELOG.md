@@ -1,10 +1,22 @@
 # Changelog
 
+## 0.2.1 — 2026-10-11
+
+Semantics clarified to match what a runtime can apply the same way in backtests and live trading:
+
+- `exits.minHoldDays` counts **trading days** (entry day = 0; weekends and holidays excluded) and holds back
+  `dsl.exit` as well as the other exits. 0.2.0 said calendar days and left `dsl.exit` free.
+- `sizing.scaleIn` add-ons are filled per `execution.fillTiming` (next open under `NEXT_OPEN`), and never on a bar
+  that also closes the position. 0.2.0 said "at the close of the triggering bar".
+- Reference runtime: backtests and live trading now apply both rules identically; live pyramiding honours
+  `maxTotalPct`; live minimum holding is counted from the start of the current position, not the first time the
+  symbol was ever held.
+
 ## 0.2.0 — 2026-10-11
 
 - Contract 0.2 (`schema/0.2/`): trade settings in three optional artifact blocks.
   - `exits`: stop loss, take profit, trailing stop with activation, ATR stop / take profit, minimum holding days
-    (calendar days on every timeframe), no-new-high exit.
+    (see 0.2.1), no-new-high exit.
   - `sizing`: `FIXED_PCT` or `ATR_RISK` per entry, `maxHoldings`, pyramiding `scaleIn`.
   - `execution`: fill timing (`NEXT_OPEN` / `BAR_CLOSE`).
   Semantics in SPEC §4a.

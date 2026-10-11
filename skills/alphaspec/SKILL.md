@@ -72,7 +72,7 @@ Stops, sizing and fill timing go in three optional top-level blocks — not in t
 "execution": { "fillTiming": "NEXT_OPEN" }
 ```
 
-- Other exits: `takeProfitPct`, `atrStopMultiplier`, `atrTakeProfitMultiplier` (ATR 14), `minHoldDays` (calendar days during which stops do not fire). Percentages are 0–100.
+- Other exits: `takeProfitPct`, `atrStopMultiplier`, `atrTakeProfitMultiplier` (ATR 14), `minHoldDays` (trading days after entry during which nothing closes the position, rule exits included). Percentages are 0–100.
 - Leave a field out to turn that exit off; never write `0` (rejected).
 - **Always write `sizing`.** Without it the reference runtime sizes entries by its account limits (up to 60% of equity per symbol), which rarely matches what the user has in mind.
 - Keep `sizing.targetPctPerOrder` ≤ `riskProfile.maxSymbolExposurePct` (AS017).

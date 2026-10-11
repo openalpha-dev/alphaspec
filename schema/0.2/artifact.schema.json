@@ -756,7 +756,7 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 365,
-          "description": "Calendar days after entry during which none of the exits above fire (dsl.exit still does). Calendar days on every timeframe: 3 on a 5m strategy is three days, not three bars."
+          "description": "Trading days after entry during which nothing closes the position: neither the exits above nor dsl.exit. The entry day is day 0; weekends and market holidays do not count, on every timeframe (3 on a 5m strategy is three trading days). Use it to keep a fresh position from being shaken out by short-term noise; omit it if that is not wanted."
         },
         "noNewHighDays": {
           "type": "integer",
@@ -821,7 +821,7 @@
         "maxAddOns",
         "spacingAtr"
       ],
-      "description": "Pyramiding: add to a winning position each time the close rises spacingAtr × ATR(14) above the last buy price. Each add-on is sized like an entry (positionMode / targetPctPerOrder). Filled at the close of the bar that triggers it.",
+      "description": "Pyramiding: add to a winning position each time the close rises spacingAtr × ATR(14) above the last buy price. Each add-on is sized like an entry (positionMode / targetPctPerOrder). Filled like any other order under execution.fillTiming: at the triggering bar's close (BAR_CLOSE) or at the next bar's open (NEXT_OPEN). No add-on is made on a bar that also closes the position.",
       "properties": {
         "maxAddOns": {
           "type": "integer",
