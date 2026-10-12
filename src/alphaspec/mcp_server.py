@@ -233,6 +233,32 @@ def get_capabilities() -> dict[str, Any]:
 
 
 @server.tool()
+def list_factors() -> dict[str, Any]:
+    """Factors you can bind in factorBindings (with source, category, description, whether your plan unlocks
+    them) and your uploaded score series (bind those as "score:<scoreName>")."""
+    return _call(_client().factors)
+
+
+@server.tool()
+def submit_scores(documents: list[dict[str, Any]]) -> dict[str, Any]:
+    """Upload score documents (kind=score; same scoreName and market). Re-uploading a date replaces it.
+    Returns the factor reference to use in factorBindings, or {accepted: false, issues}."""
+    try:
+        res = _call(_client().submit_scores, documents)
+    except Rejected as exc:
+        return {"accepted": False, "issues": exc.issues}
+    return {"accepted": True, **res}
+
+
+@server.tool()
+def get_evidence(strategy_id: int = 0, artifact_id: int = 0, date_from: str = "", date_to: str = "") -> dict[str, Any]:
+    """What actually happened when a strategy ran (evidence document): rejections by reason, fill and reject
+    rates, slippage against the arrival price, risk hits, fills, and whether signals were evaluated on time.
+    Give strategy_id, or artifact_id for the strategy it was promoted to. Dates are market-local, default last 30 days."""
+    return _call(_client().evidence, strategy_id or None, artifact_id or None, date_from or None, date_to or None)
+
+
+@server.tool()
 def list_strategies() -> list[dict[str, Any]]:
     """My existing strategies on the runtime, which export_strategy can turn into AlphaSpec documents."""
     return _call(_client().strategies)

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.0 — 2026-10-12
+
+- Contract 0.4 (`schema/0.4/`): factor-ranked strategies (`signalMode`, `factorBindings` with `factor` /
+  `direction` / `weight`, new `ranking` block; `dsl` optional for `FACTOR_ONLY`), short rules
+  (`dsl.shortEntry` / `dsl.shortExit`).
+- Lint rules AS019 (short rules on a market that cannot be shorted), AS020 (short entry without a short
+  exit), AS021 (factor bound twice), AS022 (topN covers the whole symbol list).
+- MARKETS.md: trading rules by market (lots, settlement, price limits, short selling).
+- SPEC §4b–4d: factor strategies, short rules, score series.
+- Client / CLI / MCP: `factors`, `submit-scores`, `scores`, `evidence`.
+- RUNTIME_API: factor evaluation window (2 + 1 years), score series, evidence, new `RUNTIME_*` codes.
+- Examples 07 (quality + value, monthly) and 08 (long/short futures).
+- `alphaspec validate` reads files holding a JSON array or JSON lines; `submit_scores` waits up to 300 s.
+- Reference runtime: factor backtests now report in-sample / out-of-sample segments, accept an explicit
+  symbol list and record which artifact they evaluated (all three were missing); factor + rule strategies
+  gate on rank only; score uploads write in bulk (30k rows in seconds instead of minutes); evidence judges
+  intraday strategies by their last evaluated bar.
+
 ## 0.3.0 — 2026-10-12
 
 - Contract 0.3 (`schema/0.3/`): new `capabilities` document kind; `gate-result.tradeSettings` reports the exits,

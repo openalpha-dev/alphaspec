@@ -1,0 +1,48 @@
+{
+  "description": "The same factor twice doubles its weight.",
+  "document": {
+    "contractVersion": "0.4",
+    "kind": "artifact",
+    "title": "momentum top 3",
+    "market": "cn_stock",
+    "timeframe": "1d",
+    "signalMode": "FACTOR_ONLY",
+    "factorBindings": [
+      {
+        "factor": "MOMENTUM_20",
+        "direction": "DESC"
+      },
+      {
+        "factor": "MOMENTUM_20",
+        "direction": "DESC",
+        "weight": 2
+      }
+    ],
+    "ranking": {
+      "topN": 3,
+      "rebalance": "WEEKLY"
+    },
+    "universe": {
+      "mode": "SYMBOLS",
+      "symbols": [
+        "600519.SH",
+        "000858.SZ",
+        "300750.SZ",
+        "601318.SH",
+        "600036.SH",
+        "000333.SZ"
+      ]
+    },
+    "producer": {
+      "kind": "HUMAN",
+      "name": "example"
+    }
+  },
+  "expect": {
+    "valid": true,
+    "errors": [],
+    "warnings": [
+      "AS021"
+    ]
+  }
+}

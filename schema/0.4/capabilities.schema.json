@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openalpha-dev.github.io/alphaspec/schema/0.4/capabilities.schema.json",
+  "title": "AlphaSpec Runtime Capabilities",
+  "description": "What a runtime can evaluate and promote right now. Produced by the runtime from its live data; an agent reads it before writing a document. Everything here can change as data is added, so do not cache it for long.",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "kind",
+    "contractVersions",
+    "evaluation",
+    "markets"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "contractVersion": {
+      "$ref": "common.schema.json#/$defs/contractVersion"
+    },
+    "kind": {
+      "const": "capabilities"
+    },
+    "runtime": {
+      "type": "string"
+    },
+    "asOf": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "contractVersions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Every contract version the runtime accepts."
+    },
+    "evaluation": {
+      "type": "object",
+      "required": [
+        "daily",
+        "intraday"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "daily": {
+          "$ref": "#/$defs/window"
+        },
+        "intraday": {
+          "$ref": "#/$defs/window"
+        },
+        "universeModes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "SYMBOLS",
+              "UNIVERSE",
+              "ALL_MARKET"
+            ]
+          }
+        },
+        "sizingModes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "direction": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "LONG",
+              "SHORT"
+            ]
+          }
+        },
+        "quota": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "limit": {
+              "type": "integer"
+            },
+            "used": {
+              "type": "integer"
+            },
+            "remaining": {
+              "type": "integer"
+            },
+            "resetsAt": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "markets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/market"
+      }
+    }
+  },
+  "$defs": {
+    "window": {
+      "type": "object",
+      "required": [
+        "timeframes",
+        "inSampleMonths",
+        "outOfSampleMonths"
+      ],
+      "additionalProperties": true,
+      "description": "The evaluation window the runtime uses for this timeframe tier. The submitter cannot choose it.",
+      "properties": {
+        "timeframes": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/timeframe"
+          }
+        },
+        "inSampleMonths": {
+          "type": "integer"
+        },
+        "outOfSampleMonths": {
+          "type": "integer"
+        },
+        "inSampleFrom": {
+          "type": "string",
+          "format": "date"
+        },
+        "outOfSampleFrom": {
+          "type": "string",
+          "format": "date"
+        },
+        "to": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "tier": {
+      "type": "object",
+      "required": [
+        "timeframes",
+        "evaluable"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "timeframes": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/timeframe"
+          }
+        },
+        "evaluable": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why not, when evaluable is false: usually how much history exists versus how much the window needs."
+        },
+        "history": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "market": {
+      "type": "object",
+      "required": [
+        "id",
+        "evaluation",
+        "indicatorProfiles",
+        "promotable"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/marketId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "evaluation": {
+          "type": "object",
+          "properties": {
+            "daily": {
+              "$ref": "#/$defs/tier"
+            },
+            "intraday": {
+              "$ref": "#/$defs/tier"
+            }
+          }
+        },
+        "indicatorProfiles": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "core",
+              "ext.cn",
+              "ext.l2",
+              "ext.data"
+            ]
+          },
+          "description": "Profiles usable in an evaluation on this market. An indicator of another profile is rejected at submission."
+        },
+        "promotable": {
+          "type": "boolean",
+          "description": "Whether a passing strategy can be turned into a paper strategy on this runtime."
+        },
+        "promotableReason": {
+          "type": "string"
+        },
+        "benchmark": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "description": "Index the out-of-sample segment is compared against; null means the gate falls back to an absolute Sharpe floor."
+        }
+      }
+    }
+  }
+}

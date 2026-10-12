@@ -41,6 +41,18 @@ CAPS = {
     ],
 }
 
+EVIDENCE = {
+    "contractVersion": "0.4", "kind": "evidence",
+    "subject": {"strategy": "strategy/438", "mode": "PAPER"},
+    "window": {"from": "2026-09-12", "to": "2026-10-12", "timezone": "Asia/Shanghai"},
+    "caliber": {"slippageBasis": "VS_ARRIVAL_PRICE", "feeIncluded": False, "volumeUnit": "SHARE", "currency": "CNY"},
+    "rejects": [{"category": "RISK", "code": "RISK_ORDER_LIMIT", "count": 3, "message": "daily order limit"}],
+    "executionQuality": {"orders": 10, "fillRatePct": 70.0, "rejectRatePct": 30.0, "avgSlippageBps": 4.2, "p95SlippageBps": 11.0},
+    "riskHits": [{"code": "RISK_ORDER_LIMIT", "count": 3, "blocking": True}],
+    "ledger": [{"ts": "2026-10-09T01:31:00Z", "symbol": "600519.SH", "side": "BUY", "qty": 100, "price": 1500.0}],
+    "pipeline": [{"stage": "STRATEGY_ENABLED", "status": "OK"}, {"stage": "SIGNAL_EVALUATION", "status": "OK"}],
+}
+
 EXPORTED = json.loads((ROOT / "examples" / "artifacts" / "06-trend-with-trade-settings.json").read_text())
 
 
@@ -95,6 +107,18 @@ class FakeRuntime(BaseHTTPRequestHandler):
         if method == "POST" and p == "/api/agent/v1/artifacts/8/promote":
             s["promote_body"] = body
             return self._send(200, {"strategyId": 438, "created": False, "updated": True, "next": "new version"})
+        if method == "GET" and p == "/api/agent/v1/factors":
+            return self._send(200, {"factors": [{"factor": "MOMENTUM", "source": "GLOBAL", "name": "Momentum", "category": "MOMENTUM",
+                                                 "locked": False}],
+                                    "scores": [{"factor": "score:my-model", "market": "cn_stock", "from": "2023-10-13",
+                                                "to": "2026-10-09", "days": 730}]})
+        if method == "POST" and p == "/api/agent/v1/scores":
+            s["scores_body"] = body
+            return self._send(201, {"scoreName": "my-model", "market": "cn_stock", "factor": "score:my-model",
+                                    "dates": len(body), "rows": sum(len(d["scores"]) for d in body)})
+        if method == "GET" and p.startswith("/api/agent/v1/strategies/438/evidence"):
+            s["evidence_path"] = p
+            return self._send(200, EVIDENCE)
         if method == "GET" and p == "/api/agent/v1/artifacts":
             return self._send(200, [{"artifactId": 7, "title": "t", "evaluated": True, "passed": True}])
         return self._send(404, {"message": "no route"})
@@ -210,3 +234,31 @@ def test_export_with_errors_returns_document_and_exit_code_1(runtime, capsys):
     assert issues[0]["code"] == "EXPORT_UNSUPPORTED"
     assert main(["export", "9"]) == 1
     assert "EXPORT_UNSUPPORTED" in capsys.readouterr().err
+
+
+def test_factors_scores_and_evidence(runtime, capsys, tmp_path):
+    from alphaspec import validate
+    c = Client()
+    assert c.factors()["factors"][0]["factor"] == "MOMENTUM"
+    score = json.loads((ROOT / "examples" / "scores" / "01-model-scores-cn-stock.json").read_text())
+    lines = tmp_path / "scores.jsonl"
+    lines.write_text("\n".join(json.dumps(dict(score, asOf=d)) for d in ("2026-10-08", "2026-10-09")))
+    assert main(["submit-scores", str(lines)]) == 0
+    assert len(FakeRuntime.state["scores_body"]) == 2
+    assert "score:my-model" in capsys.readouterr().out
+
+    ev = c.evidence(strategy_id=438, date_from="2026-09-12")
+    assert validate(ev).ok, validate(ev).issues
+    assert FakeRuntime.state["evidence_path"].endswith("from=2026-09-12")
+    assert main(["evidence", "438"]) == 0
+    out = capsys.readouterr().out
+    assert "RISK_ORDER_LIMIT" in out and "VS_ARRIVAL_PRICE" in out
+
+
+def test_invalid_score_is_rejected_locally(runtime):
+    score = json.loads((ROOT / "examples" / "scores" / "01-model-scores-cn-stock.json").read_text())
+    score["scores"] = [{"symbol": "600000", "score": 1.0}]
+    with pytest.raises(Rejected) as e:
+        Client().submit_scores([score])
+    assert any(i["code"] == "AS011" for i in e.value.issues)
+    assert "scores_body" not in FakeRuntime.state

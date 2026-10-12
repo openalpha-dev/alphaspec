@@ -45,7 +45,7 @@ def test_tools_are_listed_and_no_order_tool():
     names = _run({}, steps)
     assert {"validate", "search_indicators", "get_indicator", "submit", "evaluate", "gate_result",
             "promote", "list_submissions", "whoami", "get_capabilities", "list_strategies",
-            "export_strategy"} <= set(names)
+            "export_strategy", "list_factors", "submit_scores", "get_evidence"} <= set(names)
     assert not any("order" in n for n in names)
 
 

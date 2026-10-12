@@ -1,6 +1,6 @@
 ---
 name: alphaspec
-description: Write, fix, validate and submit AlphaSpec documents — declarative trading-strategy artifacts (a rule tree of indicators with entry/exit conditions, universe and risk settings) and model score submissions — and run them on an AlphaSpec runtime for backtest, gate and paper trading. Use when asked to turn a trading idea into a strategy, modify an existing strategy, write or edit a strategy as JSON/DSL, add stops, position sizing or fill timing, explain an AlphaSpec validation error (SCHEMA, AS001–AS105), or submit / evaluate / promote a strategy.
+description: Write, fix, validate and submit AlphaSpec documents — declarative trading-strategy artifacts (a rule tree of indicators with entry/exit conditions, universe and risk settings) and model score submissions — and run them on an AlphaSpec runtime for backtest, gate and paper trading. Use when asked to turn a trading idea into a strategy, modify an existing strategy, write or edit a strategy as JSON/DSL, add stops, position sizing or fill timing, build factor-ranked strategies or upload model scores, explain an AlphaSpec validation error (SCHEMA, AS001–AS105), or submit / evaluate / promote a strategy.
 ---
 
 # AlphaSpec
@@ -80,6 +80,15 @@ Stops, sizing and fill timing go in three optional top-level blocks — not in t
 - Pyramiding: `"scaleIn": {"maxAddOns": 3, "spacingAtr": 0.5, "maxTotalPct": 40}` inside `sizing`; keep `maxTotalPct` ≥ 2 × `targetPctPerOrder` under FIXED_PCT (AS018).
 - Not available, rejected if written: fixed share counts, averaging down. If the user asks for one, say so instead of approximating it.
 - Full field semantics: `alphaspec docs spec` (section 4a); example: `alphaspec examples 06-trend`.
+
+## Factor strategies and score series (contract 0.4)
+
+- Hold the top-ranked symbols instead of waiting for a rule: `"signalMode": "FACTOR_ONLY"`, `factorBindings` and `ranking` (example `alphaspec examples 07-factor`). No `dsl`, and no `exits` / `sizing` / `execution` (rejected for FACTOR_ONLY).
+- Find factor codes with `alphaspec factors --search <word>`; never invent them. If a code exists both globally and as the user's own factor, write `global:CODE` or `tenant:CODE`.
+- `FACTOR_AND_RULE`: `dsl.entry` only fires for symbols currently in the top `topN`.
+- The user's own model: upload daily scores with `alphaspec submit-scores scores.jsonl` (kind `score`, one document per date; `null` for no score, never 0), then bind `"factor": "score:<scoreName>"`. The series must cover the factor evaluation window (2 years + 1 year; see `alphaspec capabilities`).
+- Short side: `dsl.shortEntry` / `dsl.shortExit`, only on markets that can be shorted (AS019); `entry` / `exit` stay the long side.
+- After a strategy is promoted and started, `alphaspec evidence --artifact <id>` shows rejections, fills, slippage and whether it ran.
 
 ## Producer
 

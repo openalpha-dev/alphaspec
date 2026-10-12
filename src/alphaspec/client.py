@@ -120,6 +120,40 @@ class Client:
             body["targetStrategyId"] = target_strategy_id
         return self._request("POST", f"/artifacts/{artifact_id}/promote", body or None)[1]
 
+    def factors(self) -> dict[str, Any]:
+        """Factors you can bind (``{"factors": [...], "scores": [...]}``). Use a factor's ``factor`` value, or
+        ``score:<scoreName>`` for a score series you uploaded, in ``factorBindings[].factor``."""
+        return self._request("GET", "/factors")[1]
+
+    def submit_scores(self, docs: dict[str, Any] | list[dict[str, Any]], validate_locally: bool = True) -> dict[str, Any]:
+        """Upload score documents (one or a list, same scoreName and market). Re-uploading a date replaces it.
+        Returns ``{scoreName, market, factor, dates, rows}``; bind it as ``factor``."""
+        batch = docs if isinstance(docs, list) else [docs]
+        if validate_locally:
+            issues = []
+            for i, d in enumerate(batch):
+                for issue in validate(d).errors:
+                    issues.append({**issue.__dict__, "path": f"/{i}{issue.path}"})
+            if issues:
+                raise Rejected(0, None, issues)
+        # Writing years of scores takes the runtime longer than an ordinary call.
+        return self._request("POST", "/scores", batch, timeout=max(self.timeout, 300))[1]
+
+    def scores(self) -> list[dict[str, Any]]:
+        """Your uploaded score series with their date coverage."""
+        return self._request("GET", "/scores")[1]
+
+    def evidence(self, strategy_id: int | None = None, artifact_id: int | None = None,
+                 date_from: str | None = None, date_to: str | None = None) -> dict[str, Any]:
+        """What actually happened when a strategy ran: rejections, execution quality, risk hits, fills and
+        whether it ran when it should have (an ``evidence`` document). Pass ``strategy_id``, or ``artifact_id``
+        for the strategy an artifact was promoted to. Dates are the market's local dates; default last 30 days."""
+        if (strategy_id is None) == (artifact_id is None):
+            raise ValueError("pass exactly one of strategy_id or artifact_id")
+        path = f"/strategies/{strategy_id}/evidence" if strategy_id is not None else f"/artifacts/{artifact_id}/evidence"
+        query = "&".join(f"{k}={v}" for k, v in (("from", date_from), ("to", date_to)) if v)
+        return self._request("GET", path + (f"?{query}" if query else ""))[1]
+
     def capabilities(self) -> dict[str, Any]:
         """What the runtime can evaluate right now: markets with enough history, indicator
         profiles, whether a market can be promoted, benchmarks, windows and today's quota.
@@ -142,7 +176,8 @@ class Client:
 
     # ------------------------------------------------------------------ http
 
-    def _request(self, method: str, path: str, body: Any = None, allow: tuple[int, ...] = ()) -> tuple[int, Any]:
+    def _request(self, method: str, path: str, body: Any = None, allow: tuple[int, ...] = (),
+                 timeout: float | None = None) -> tuple[int, Any]:
         data = None if body is None else json.dumps(body, ensure_ascii=False).encode("utf-8")
         req = urllib.request.Request(
             self.base_url + API_PREFIX + path,
@@ -156,7 +191,7 @@ class Client:
             },
         )
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with urllib.request.urlopen(req, timeout=timeout or self.timeout) as resp:
                 return resp.status, _decode(resp.read())
         except urllib.error.HTTPError as e:
             payload = _decode(e.read())

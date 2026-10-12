@@ -1,0 +1,68 @@
+{
+  "description": "Short entry and no way to cover.",
+  "document": {
+    "contractVersion": "0.4",
+    "kind": "artifact",
+    "title": "EMA 20/60 crossover",
+    "note": "The smallest useful artifact: two indicators, one entry, one exit, a fixed symbol list.",
+    "market": "cn_future",
+    "timeframe": "1d",
+    "dsl": {
+      "version": 1,
+      "indicators": {
+        "fast": {
+          "type": "EMA",
+          "period": 20
+        },
+        "slow": {
+          "type": "EMA",
+          "period": 60
+        }
+      },
+      "entry": {
+        "type": "CROSS_UP",
+        "left": {
+          "ind": "fast"
+        },
+        "right": {
+          "ind": "slow"
+        }
+      },
+      "exit": {
+        "type": "CROSS_DOWN",
+        "left": {
+          "ind": "fast"
+        },
+        "right": {
+          "ind": "slow"
+        }
+      },
+      "shortEntry": {
+        "type": "CROSS_DOWN",
+        "left": {
+          "ind": "fast"
+        },
+        "right": {
+          "ind": "slow"
+        }
+      }
+    },
+    "universe": {
+      "mode": "SYMBOLS",
+      "symbols": [
+        "RB2701.SHF"
+      ]
+    },
+    "producer": {
+      "kind": "HUMAN",
+      "name": "example"
+    }
+  },
+  "expect": {
+    "valid": true,
+    "errors": [],
+    "warnings": [
+      "AS020"
+    ]
+  }
+}

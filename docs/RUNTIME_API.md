@@ -22,6 +22,11 @@ prefix.
 | `GET /artifacts/{id}/gate-result` | 200 `gate-result` document | 202 still running · 409 `{status: FAILED, error}` |
 | `POST /artifacts/{id}/promote` — body optional: `{name, targetStrategyId}` | 201 `{strategyId, created, enabled: false}` · 200 if already promoted · 200 `{updated: true}` with `targetStrategyId` | 400 gate not passed, market not promotable, or target's market / universe differs · runtime product rules (pool size, names) apply as in its UI |
 | `GET /strategies` | 200 your existing strategies | |
+| `GET /strategies/{id}/evidence?from&to` | 200 `evidence` document (contract 0.4) for one of your strategies | 400 bad dates (max one year) |
+| `GET /artifacts/{id}/evidence?from&to` | 200 `evidence` of the strategy the artifact was promoted to | 400 not promoted |
+| `GET /factors` | 200 `{factors, scores}`: factors you can bind and your score series | |
+| `POST /scores` — body: a `score` document or an array (same scoreName, market) | 201 `{scoreName, market, factor, dates, rows, warnings?}` | 422 `{issues}` |
+| `GET /scores` | 200 your score series with date coverage | |
 | `GET /strategies/{id}/alphaspec` | 200 `{document, issues}` — an artifact you can edit and resubmit | 422 `{document, issues}` exported but does not validate (e.g. a factor strategy before 0.4) |
 
 ## Capabilities
@@ -58,6 +63,12 @@ and do not use the evaluation quota.
 | `RUNTIME_SYMBOL_NO_DATA` | error | a listed symbol has no bars in the window — almost always a typo |
 | `RUNTIME_SYMBOL_PARTIAL_HISTORY` | warning | a symbol's history starts more than a month after the window does (its in-sample is shorter) |
 | `RUNTIME_NOT_PROMOTABLE` | warning | evaluable, but a passing strategy cannot be promoted on this runtime |
+| `RUNTIME_SIGNAL_MODE_UNSUPPORTED` | error | `FACTOR_OR_RULE` (the reference runtime supports `FACTOR_ONLY` and `FACTOR_AND_RULE`) |
+| `RUNTIME_TIMEFRAME` | error | a factor strategy on a timeframe other than `1d` |
+| `RUNTIME_SETTING_UNSUPPORTED` | error | `exits` / `sizing` / `execution` on a `FACTOR_ONLY` strategy (its backtest rebalances by `ranking` and would ignore them, while live stops would not) |
+| `RUNTIME_UNIVERSE_TOO_SMALL` | error | a factor strategy on fewer than 5 listed symbols |
+| `RUNTIME_FACTOR_UNKNOWN` / `RUNTIME_FACTOR_AMBIGUOUS` / `RUNTIME_FACTOR_LOCKED` | error | the factor is not in your library, exists both as a global and as your own factor (write `global:CODE` or `tenant:CODE`), or needs a higher plan |
+| `RUNTIME_FACTOR_HISTORY` | error | a global factor or score series does not cover the factor evaluation window |
 
 ## Evaluation
 
@@ -68,6 +79,7 @@ across the boundary and indicators warm up once:
 | Strategy timeframe | In-sample | Out-of-sample |
 |---|---|---|
 | `1d`, `1w` | 4 years | the most recent 1 year |
+| any strategy with `factorBindings` | 2 years | the most recent 1 year |
 | intraday | 18 months | the most recent 6 months |
 
 Performance figures are recomputed by the runtime (`computedBy: PLATFORM`) and annualised
@@ -107,7 +119,8 @@ The evaluation backtest and the promoted strategy use the same `exits`, `sizing`
 The gate result (contract 0.3) reports what was actually used in `tradeSettings`: the effective
 `exits`, `sizing` and `execution`, and under `defaults` every field the runtime filled in. When the
 default sizing cannot be written as an AlphaSpec `sizing` block, `sizing` is absent and the `/sizing`
-default says in words how positions were sized, with the limits that applied.
+default says in words how positions were sized, with the limits that applied. `FACTOR_ONLY` strategies
+have no `tradeSettings`: their holdings come from `ranking` alone.
 
 "Out-of-sample" here means *chosen by the platform*, not *unseen at submission*: recent
 market data is public. The only truly unseen period is the one after you submit, which is
@@ -124,13 +137,34 @@ and dropped. The promoted strategy therefore carries no `params`; your submitted
 its parameters, stays attached to the artifact. Trade settings are carried over unchanged and show
 up in the runtime's strategy builder as its stop, position-size and fill-timing settings.
 
+Factor-driven strategies use the shorter window because the reference runtime keeps three years of
+factor scores (global factors start in 2023-09); a longer window would leave the early in-sample
+period without scores and the book in cash.
+
+### Score series
+
+Upload one `score` document per date (batch them: an array of up to 800 documents per call). The
+runtime stores the series under your account only; bind it in an artifact as `score:<scoreName>`.
+Scores dated T are used from the next trading day. Re-uploading a date replaces it. For a promoted
+strategy, keep uploading daily: the rebalance uses the latest scores and will not trade on stale ones.
+
+### Evidence
+
+`GET /strategies/{id}/evidence` reports, for a date range in the market's calendar: rejections grouped by
+reason code (category from the risk rule that fired; the original message is kept), fill and reject
+rates, slippage against the quote snapshot taken when the order was sent (`VS_ARRIVAL_PRICE`; positive =
+cost), risk hits, up to 500 fills, and `pipeline` — whether the strategy is enabled and whether its
+signals were evaluated on the last trading day. Paper and live orders are both included; `subject.mode`
+is `LIVE` if any live order exists.
+
 ### Updating an existing strategy
 
 `GET /strategies/{id}/alphaspec` exports one of your strategies (rules, trade settings, risk limits,
 universe) as an artifact. Edit it, submit it as a new artifact (count it in `searchTrials`), evaluate,
 and promote with `targetStrategyId` to publish it as a new version of that strategy. Market and
 universe must stay the same; change those in the runtime's UI or promote to a new strategy instead.
-Factor strategies and long/short rule sets cannot be exported before contract 0.4.
+From 0.4, factor strategies and long/short rule sets export too; factor bindings carry their source
+(`global:`, `tenant:`, `score:`) so they resolve the same way on resubmission.
 
 ## Python
 

@@ -1,0 +1,16 @@
+{
+  "contractVersion": "0.4",
+  "kind": "artifact",
+  "title": "Quality + value, top 20, monthly",
+  "note": "Contract 0.4: a factor-ranked strategy has no rule tree. Every month, rank the universe by the equal-weighted quality and value scores with size and industry removed, and hold the top 20 at no more than 8% each. Factor codes come from the runtime's factor listing (alphaspec factors); global: picks the platform-wide factor when you also have a factor of the same code.",
+  "market": "cn_stock",
+  "timeframe": "1d",
+  "signalMode": "FACTOR_ONLY",
+  "factorBindings": [
+    { "factor": "global:QUALITY", "direction": "DESC" },
+    { "factor": "global:VALUE", "direction": "DESC" }
+  ],
+  "ranking": { "topN": 20, "rebalance": "MONTHLY", "weighting": "EQUAL", "neutralize": "SIZE_INDUSTRY", "maxWeightPct": 8 },
+  "universe": { "mode": "UNIVERSE", "universeId": "csi300" },
+  "producer": { "kind": "HUMAN", "name": "example" }
+}

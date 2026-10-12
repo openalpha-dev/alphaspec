@@ -1,4 +1,4 @@
-# AlphaSpec 0.3 — semantics
+# AlphaSpec 0.4 — semantics
 
 The JSON Schemas in `schema/<version>/` define the shape of each document. This page defines
 what the fields **mean**, where the shape alone cannot. Where this page and a runtime
@@ -20,7 +20,8 @@ A runtime must refuse a `contractVersion` it does not implement rather than gues
 Versions are additive: a document is validated against the schemas of the version it
 declares, so a `0.1` document carrying `0.2` fields is rejected, not half-read. Use `0.2` or
 later when you need trade settings (section 4a). 0.3 adds no artifact fields; it adds the
-`capabilities` document and `tradeSettings` in gate results.
+`capabilities` document and `tradeSettings` in gate results. 0.4 adds factor-ranked strategies
+(section 4b) and short rules (section 4c).
 
 A runtime must not accept a document it cannot run as written. When its data or features fall
 short (a market without enough history, an indicator it cannot compute in a backtest), it rejects
@@ -134,6 +135,47 @@ and fills at the next bar's open; `BAR_CLOSE` fills at the signal bar's close.
 
 **Not in 0.2, rejected if present**: fixed share counts, averaging down (adding as the price
 falls), add-ons spaced in percent rather than ATR.
+
+## 4b. Factor-ranked strategies (0.4: `signalMode`, `factorBindings`, `ranking`)
+
+A factor strategy ranks its universe by a score on each rebalance date and holds the top of the
+list, instead of (or in addition to) waiting for a rule to fire.
+
+```json
+"signalMode": "FACTOR_ONLY",
+"factorBindings": [ { "factor": "QUALITY", "direction": "DESC" }, { "factor": "VALUE", "direction": "DESC", "weight": 0.5 } ],
+"ranking": { "topN": 20, "rebalance": "MONTHLY", "weighting": "EQUAL", "neutralize": "SIZE_INDUSTRY", "maxWeightPct": 8 }
+```
+
+- `factor` names a factor in the runtime's library (a runtime lists them), or `score:<scoreName>` for a
+  score series you submitted (section 4d). `direction: DESC` means a higher score is better.
+- Each binding's score is converted to a cross-sectional percentile and combined by `weight`.
+  `neutralize` removes size (and industry) exposure from the combined score before ranking.
+- On every `rebalance` date the top `topN` symbols are held, weighted by `weighting` and capped at
+  `maxWeightPct`; the rest of the book is sold. Scores dated T are used from T+1.
+- `signalMode`:
+  - `FACTOR_ONLY` — ranking alone decides holdings; no `dsl` is needed. Trade settings
+    (`exits`, `sizing`, `execution`) do not apply to a ranked book and a runtime may reject them.
+  - `FACTOR_AND_RULE` — `dsl.entry` opens a position only for a symbol currently ranked within the
+    top `topN`; exits follow `dsl.exit` and `exits` as usual.
+  - `FACTOR_OR_RULE` — either; runtimes may not support it.
+  - `AUTO` — `RULE_ONLY` without bindings, `FACTOR_ONLY` without a rule tree, `FACTOR_AND_RULE` with both.
+
+## 4c. Short rules (0.4: `dsl.shortEntry`, `dsl.shortExit`)
+
+`dsl.entry` / `dsl.exit` are the long side; `dsl.shortEntry` / `dsl.shortExit` open and cover a short
+position, on markets where shorting exists (rule AS019; see MARKETS.md). Both sides use the same
+indicators, `exits` and `sizing`. On futures, `sizing.targetPctPerOrder` is the margin occupied by a
+new position as a percentage of equity; the notional exposure is that margin divided by the margin rate.
+Futures symbols are specific contracts; continuous contracts and roll policy are not part of 0.4.
+
+## 4d. Score series (`kind: score`)
+
+A score document carries one date (`asOf`) of one model's scores for a market. Submissions with the
+same `scoreName` form a time series, which an artifact ranks by binding `score:<scoreName>`.
+`null` means no score that day (the symbol is not ranked); never encode missing as 0. Target
+`weights` and the optional `execution` hints in a score document are not interpreted by runtimes
+that rank through `ranking`; they say so when they ignore them.
 
 ## 5. Gates
 

@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openalpha-dev.github.io/alphaspec/schema/0.4/gate-result.schema.json",
+  "title": "AlphaSpec Gate Result",
+  "description": "What a runtime returns after judging a submitted artifact or score series. Produced by the runtime, never by the submitter.",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "kind",
+    "passed",
+    "computedBy",
+    "checks"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": {
+      "$ref": "common.schema.json#/$defs/contractVersion"
+    },
+    "kind": {
+      "const": "gate-result"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Identifier of the judged artifact or score series."
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "computedBy": {
+      "enum": [
+        "PLATFORM",
+        "SELF_REPORTED"
+      ],
+      "description": "PLATFORM: performance figures were recomputed by the runtime. SELF_REPORTED: they came from the submitter. Public rankings must accept PLATFORM only."
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "inSampleFrom": {
+          "type": "string",
+          "format": "date"
+        },
+        "inSampleTo": {
+          "type": "string",
+          "format": "date"
+        },
+        "outOfSampleFrom": {
+          "type": "string",
+          "format": "date",
+          "description": "Chosen by the runtime and not visible at submission time."
+        },
+        "outOfSampleTo": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "description": "One entry per criterion, so a failure can be diffed and explained, not just reported.",
+      "items": {
+        "type": "object",
+        "required": [
+          "code",
+          "passed"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "GATE_MIN_RETURN",
+              "GATE_MAX_DRAWDOWN",
+              "GATE_MIN_SHARPE",
+              "GATE_OUT_OF_SAMPLE",
+              "GATE_MULTIPLE_TESTING",
+              "GATE_LOOKAHEAD",
+              "GATE_COST_SENSITIVITY",
+              "GATE_CAPACITY",
+              "GATE_MARKETABILITY"
+            ]
+          },
+          "metric": {
+            "type": "string",
+            "description": "What `actual` and `threshold` measure, so a reader never infers it from the code. One check can switch measures (out-of-sample is judged on excess return when the runtime has a benchmark index, on Sharpe when it has not). Values used by the reference runtime: totalReturn, maxDrawdown, sharpe, excessReturnVsIndex, deflatedSharpeProbability, structural. Returns and drawdowns are fractions (0.05 = 5%)."
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "actual": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "threshold": {
+            "type": [
+              "number",
+              "string",
+              "null"
+            ]
+          },
+          "hint": {
+            "type": "string",
+            "description": "What to change to pass, in plain language."
+          }
+        }
+      }
+    },
+    "tradeSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exits",
+        "execution",
+        "defaults"
+      ],
+      "description": "The trade settings the evaluation actually ran with, in AlphaSpec field names, and which of them the runtime filled in because the document left them out.",
+      "properties": {
+        "exits": {
+          "$ref": "artifact.schema.json#/$defs/exits"
+        },
+        "sizing": {
+          "$ref": "artifact.schema.json#/$defs/sizing",
+          "description": "Absent when the runtime's default sizing cannot be expressed as an AlphaSpec sizing block; the defaults entry for /sizing then says in words how positions were sized."
+        },
+        "execution": {
+          "$ref": "artifact.schema.json#/$defs/execution"
+        },
+        "defaults": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "field",
+              "value"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "JSON pointer into the artifact, e.g. /sizing or /execution/fillTiming."
+              },
+              "value": {
+                "description": "The value the runtime used, or a sentence describing it."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

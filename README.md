@@ -53,15 +53,15 @@ Two ways in, written by you or your agent:
 
 | Level | Document | For | You send |
 |---|---|---|---|
-| **L1 · Score** | [`score`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.2/score.schema.json) | ML teams, factor researchers | `(asOf, market, symbol, score)` or target weights |
-| **L2 · Artifact** | [`artifact`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.2/artifact.schema.json) | rule-based strategies, AI agents | a rule tree with parameters, universe and risk overrides |
+| **L1 · Score** | [`score`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.4/score.schema.json) | ML teams, factor researchers | `(asOf, market, symbol, score)` or target weights |
+| **L2 · Artifact** | [`artifact`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.4/artifact.schema.json) | rule-based strategies, AI agents | a rule tree with parameters, universe and risk overrides |
 
 Two ways back, written by the runtime and never by the submitter:
 
 | Document | What it answers |
 |---|---|
-| [`gate-result`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.2/gate-result.schema.json) | Did it pass, judged on figures the runtime **recomputed itself**, check by check |
-| [`evidence`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.2/evidence.schema.json) | What happened in a real market: rejections, slippage, fills, deviation from target, every number with its caliber |
+| [`gate-result`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.4/gate-result.schema.json) | Did it pass, judged on figures the runtime **recomputed itself**, check by check |
+| [`evidence`](https://github.com/openalpha-dev/alphaspec/blob/main/schema/0.4/evidence.schema.json) | What happened in a real market: rejections, slippage, fills, deviation from target, every number with its caliber |
 
 The way back is the point. Research tools see prices, news and filings; none of that says whether
 an order was rejected, how much slippage it paid, or how far the portfolio drifted from its target.
@@ -83,7 +83,7 @@ A short artifact:
 
 ```json
 {
-  "contractVersion": "0.2",
+  "contractVersion": "0.4",
   "kind": "artifact",
   "title": "RSI rebound above the 60-day average",
   "market": "cn_stock",
@@ -292,7 +292,7 @@ Every document carries `contractVersion`, so a runtime can refuse what it does n
 Versions are additive and each keeps its own schema directory: a document is validated
 against the version it declares. 0.2 adds trade settings (`exits`, `sizing`, `execution`);
 see [docs/ROADMAP.md](https://github.com/openalpha-dev/alphaspec/blob/main/docs/ROADMAP.md). Schemas are published at their `$id` URLs, e.g.
-`https://openalpha-dev.github.io/alphaspec/schema/0.2/artifact.schema.json`.
+`https://openalpha-dev.github.io/alphaspec/schema/0.4/artifact.schema.json`.
 
 ## License
 

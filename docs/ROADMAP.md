@@ -47,25 +47,20 @@ The per-symbol cap stays where it was, `riskProfile.maxSymbolExposurePct`.
 - Export: a runtime exports a strategy it holds as an artifact; a passing modification can be
   promoted as a new version of it (`targetStrategyId`).
 
-## 0.4 — Direction and derivatives
+## 0.4 — Factors, scores, short rules, evidence (done)
 
-- Long and short rule sets (`longEntry`, `longExit`, `shortEntry`, `shortExit`) for markets that
-  allow shorting.
-- Futures and options semantics: contract multiplier, margin basis, continuous-contract roll policy.
-- Market profiles document lot sizes, settlement (T+0 / T+1), price limits and short-selling rules.
+- Factor-ranked strategies: `signalMode`, `factorBindings`, `ranking` (topN, rebalance, weighting,
+  neutralization, weight cap), with or without a rule tree.
+- Score series: daily `score` documents form a series an artifact ranks by (`score:<scoreName>`).
+- Short rules: `dsl.shortEntry` / `dsl.shortExit` on markets that allow shorting; market trading rules
+  (lots, settlement, price limits, shorting) in MARKETS.md.
+- Evidence for strategies a runtime runs: rejections, execution quality, risk hits, fills, pipeline.
 
-## 0.5 — Factors and scores
+## Later
 
-- Factor-ranked strategies end to end: `factorBindings`, `signalMode`, rebalance schedule.
-- L1 `score` submissions: per-date scores or target weights from your own model, run through the
-  same sizing, risk and gate.
+- Whole-market universes and universes defined by screening conditions, filtered point-in-time on
+  every rebalance date (a filter applied once at evaluation time is survivorship-biased).
+- Continuous futures contracts and roll policy; options.
+- Target-weight (`weights`) score submissions executed as given.
+- Stops on factor-ranked books.
 
-## 0.6 — Universes
-
-- Whole-market universes with filters (listing age, liquidity, market cap, exclusions).
-- Dynamic universes defined by screening conditions and re-evaluated on a schedule.
-
-## Evidence
-
-- Execution evidence (rejections, slippage, fills, drift from target) returned as `evidence`
-  documents for promoted strategies.

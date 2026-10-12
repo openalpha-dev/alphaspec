@@ -1,0 +1,23 @@
+{
+  "contractVersion": "0.4",
+  "kind": "artifact",
+  "title": "EMA trend, long and short, rebar",
+  "note": "Contract 0.4: entry/exit are the long side, shortEntry/shortExit the short side. Only on markets that can be shorted (AS019). Futures symbols are specific contracts.",
+  "market": "cn_future",
+  "timeframe": "1d",
+  "dsl": {
+    "version": 1,
+    "indicators": {
+      "fast": { "type": "EMA", "period": 20 },
+      "slow": { "type": "EMA", "period": 60 }
+    },
+    "entry": { "type": "CROSS_UP", "left": { "ind": "fast" }, "right": { "ind": "slow" } },
+    "exit": { "type": "CROSS_DOWN", "left": { "ind": "fast" }, "right": { "ind": "slow" } },
+    "shortEntry": { "type": "CROSS_DOWN", "left": { "ind": "fast" }, "right": { "ind": "slow" } },
+    "shortExit": { "type": "CROSS_UP", "left": { "ind": "fast" }, "right": { "ind": "slow" } }
+  },
+  "exits": { "stopLossPct": 3 },
+  "sizing": { "positionMode": "FIXED_PCT", "targetPctPerOrder": 10 },
+  "universe": { "mode": "SYMBOLS", "symbols": ["RB2701.SHF"] },
+  "producer": { "kind": "HUMAN", "name": "example" }
+}

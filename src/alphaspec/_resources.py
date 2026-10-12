@@ -10,10 +10,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-CONTRACT_VERSION = "0.3"
+CONTRACT_VERSION = "0.4"
 # Every contract version this package can validate. Versions are additive: a 0.1 document is
 # still checked against the 0.1 schemas, so it cannot pick up fields 0.1 did not have.
-SUPPORTED_VERSIONS = ("0.1", "0.2", "0.3")
+SUPPORTED_VERSIONS = ("0.1", "0.2", "0.3", "0.4")
 
 _PKG_DATA = Path(__file__).resolve().parent / "_data"
 _REPO_ROOT = Path(__file__).resolve().parents[2]

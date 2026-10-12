@@ -1,6 +1,6 @@
 """Command line.
 
-    alphaspec validate FILE...              check documents locally
+    alphaspec validate FILE...              check documents locally (a file may hold one, a JSON array, or JSON lines)
     alphaspec rules [--explain CODE]        list lint rules / why one exists
     alphaspec catalog [--market M] [--profile P] [--search TEXT] [--type T] [--lang en|zh]
                                             indicators you may use, with meaning and parameters
@@ -17,6 +17,11 @@
     alphaspec list
     alphaspec promote ARTIFACT_ID [--name N] [--target STRATEGY_ID]
     alphaspec strategies                    my existing strategies on the runtime
+    alphaspec factors [--search TEXT]       factors I can bind, and my uploaded score series
+    alphaspec submit-scores FILE...         upload score documents (one per file, or arrays / JSON lines)
+    alphaspec scores                        my uploaded score series
+    alphaspec evidence (STRATEGY_ID | --artifact ID) [--from D] [--to D]
+                                            what happened when it ran
     alphaspec export STRATEGY_ID [-o FILE]  export one as an AlphaSpec artifact to edit and resubmit
 
 Runtime commands read ALPHASPEC_BASE_URL and ALPHASPEC_API_KEY (or --base-url / --api-key).
@@ -42,24 +47,30 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     for name in args.files:
         path = Path(name)
         try:
-            doc = json.loads(path.read_text(encoding="utf-8"))
+            docs = _read_docs([name])
         except (OSError, json.JSONDecodeError) as exc:
             print(f"{path}: cannot read: {exc}")
             failed += 1
             continue
-        report = validate(doc)
-        bad = not report.ok or (args.strict and report.warnings)
-        failed += bool(bad)
-        if args.json:
-            print(json.dumps({
-                "file": str(path), "kind": report.kind, "ok": not bad,
-                "issues": [i.__dict__ for i in report.issues],
-            }, ensure_ascii=False))
-            continue
-        status = "FAIL" if bad else "ok"
-        print(f"{path}: {status} ({len(report.errors)} errors, {len(report.warnings)} warnings)")
-        for issue in report.issues:
-            print(f"  {issue}")
+        for n, doc in enumerate(docs):
+            label = str(path) if len(docs) == 1 else f"{path}#{n}"
+            report = validate(doc)
+            bad = not report.ok or (args.strict and report.warnings)
+            failed += bool(bad)
+            if args.json:
+                print(json.dumps({
+                    "file": label, "kind": report.kind, "ok": not bad,
+                    "issues": [i.__dict__ for i in report.issues],
+                }, ensure_ascii=False))
+                continue
+            if len(docs) > 1 and not report.issues:
+                continue  # one line per clean document would bury the ones that matter
+            status = "FAIL" if bad else "ok"
+            print(f"{label}: {status} ({len(report.errors)} errors, {len(report.warnings)} warnings)")
+            for issue in report.issues:
+                print(f"  {issue}")
+        if len(docs) > 1 and not args.json:
+            print(f"{path}: {len(docs)} documents checked")
     return 1 if failed else 0
 
 
@@ -281,8 +292,10 @@ def _cmd_capabilities(args: argparse.Namespace) -> int:
     q = ev.get("quota") or {}
     print(f"contract versions {', '.join(cap.get('contractVersions', []))}"
           + (f" · evaluations today {q.get('used')}/{q.get('limit')}" if q else ""))
-    for tier in ("daily", "intraday"):
+    for tier in ("daily", "intraday", "factor"):
         w = ev.get(tier) or {}
+        if not w:
+            continue
         print(f"{tier:8} {' '.join(w.get('timeframes', []))}: in-sample {w.get('inSampleFrom')} ~ "
               f"{w.get('outOfSampleFrom')}, out-of-sample ~ {w.get('to')}")
     print(f"universe modes: {', '.join(ev.get('universeModes', []))} · sizing: {', '.join(ev.get('sizingModes', []))}")
@@ -299,6 +312,76 @@ def _cmd_capabilities(args: argparse.Namespace) -> int:
             t = tiers.get(tier) or {}
             if not t.get("evaluable") and t.get("reason"):
                 print(f"      {tier}: {t['reason']}")
+    return 0
+
+
+def _cmd_factors(args: argparse.Namespace) -> int:
+    res = _client(args).factors()
+    if args.json:
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+        return 0
+    q = (args.search or "").lower()
+    for f in res.get("factors", []):
+        text = " ".join(str(f.get(k) or "") for k in ("factor", "name", "category", "description")).lower()
+        if q and q not in text:
+            continue
+        lock = " [locked]" if f.get("locked") else ""
+        print(f"  {f.get('factor'):28} {f.get('source'):6} {f.get('category') or '':10} {f.get('name')}{lock}")
+    for sc in res.get("scores", []):
+        print(f"  {sc.get('factor'):28} SCORE  {sc.get('market') or '':10} {sc.get('from')} ~ {sc.get('to')} ({sc.get('days')} days)")
+    return 0
+
+
+def _read_docs(paths: list[str]) -> list[dict[str, Any]]:
+    """One document per file, a JSON array of documents, or JSON lines."""
+    docs: list[dict[str, Any]] = []
+    for p in paths:
+        text = Path(p).read_text(encoding="utf-8")
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            docs.extend(json.loads(line) for line in text.splitlines() if line.strip())
+            continue
+        docs.extend(data if isinstance(data, list) else [data])
+    return docs
+
+
+def _cmd_submit_scores(args: argparse.Namespace) -> int:
+    res = _client(args).submit_scores(_read_docs(args.files))
+    _out(args, res, f"uploaded {res.get('rows')} scores on {res.get('dates')} dates — bind it as "
+                    f"\"factor\": \"{res.get('factor')}\"")
+    return 0
+
+
+def _cmd_scores(args: argparse.Namespace) -> int:
+    rows = _client(args).scores()
+    if args.json:
+        print(json.dumps(rows, ensure_ascii=False, indent=2))
+        return 0
+    for r in rows:
+        print(f"  {r.get('factor'):28} {r.get('market') or '':10} {r.get('from')} ~ {r.get('to')} ({r.get('days')} days)")
+    return 0
+
+
+def _cmd_evidence(args: argparse.Namespace) -> int:
+    ev = _client(args).evidence(strategy_id=args.strategy_id, artifact_id=args.artifact,
+                                date_from=args.date_from, date_to=args.date_to)
+    if args.json:
+        print(json.dumps(ev, ensure_ascii=False, indent=2))
+        return 0
+    w = ev.get("window", {})
+    print(f"{ev.get('subject', {}).get('strategy')} · {ev.get('subject', {}).get('mode')} · {w.get('from')} ~ {w.get('to')} ({w.get('timezone')})")
+    for p in ev.get("pipeline", []):
+        print(f"  pipeline {p.get('stage'):18} {p.get('status')}" + (f"  {'; '.join(p.get('violations', []))}" if p.get("violations") else ""))
+    q = ev.get("executionQuality", {})
+    print(f"  orders {q.get('orders', 0)} · filled {q.get('fillRatePct', '-')}% · rejected {q.get('rejectRatePct', '-')}%"
+          + (f" · slippage avg {q.get('avgSlippageBps')}bp p95 {q.get('p95SlippageBps')}bp ({ev.get('caliber', {}).get('slippageBasis')})"
+             if "avgSlippageBps" in q else ""))
+    for r in ev.get("rejects", [])[:10]:
+        print(f"  reject {r.get('category'):11} {r.get('code'):28} x{r.get('count')}  {r.get('message', '')[:80]}")
+    led = ev.get("ledger", [])
+    if led:
+        print(f"  ledger: {len(led)} fills, last {led[-1].get('ts')} {led[-1].get('side')} {led[-1].get('symbol')}")
     return 0
 
 
@@ -417,6 +500,24 @@ def main(argv: list[str] | None = None) -> int:
 
     st = sub.add_parser("strategies", parents=[remote], help="my existing strategies on the runtime")
     st.set_defaults(func=_cmd_strategies)
+
+    fc = sub.add_parser("factors", parents=[remote], help="factors I can bind, and my score series")
+    fc.add_argument("--search", help="substring match on code, name, category, description")
+    fc.set_defaults(func=_cmd_factors)
+
+    ss = sub.add_parser("submit-scores", parents=[remote], help="upload score documents")
+    ss.add_argument("files", nargs="+", help="score documents: one per file, a JSON array, or JSON lines")
+    ss.set_defaults(func=_cmd_submit_scores)
+
+    sl = sub.add_parser("scores", parents=[remote], help="my uploaded score series")
+    sl.set_defaults(func=_cmd_scores)
+
+    ev = sub.add_parser("evidence", parents=[remote], help="what happened when a strategy ran")
+    ev.add_argument("strategy_id", type=int, nargs="?")
+    ev.add_argument("--artifact", type=int, help="the strategy this artifact was promoted to")
+    ev.add_argument("--from", dest="date_from", help="YYYY-MM-DD, market-local (default: 30 days before --to)")
+    ev.add_argument("--to", dest="date_to", help="YYYY-MM-DD, market-local (default: today)")
+    ev.set_defaults(func=_cmd_evidence)
 
     xp = sub.add_parser("export", parents=[remote], help="export an existing strategy as an AlphaSpec artifact")
     xp.add_argument("strategy_id", type=int)

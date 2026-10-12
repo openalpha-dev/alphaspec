@@ -31,6 +31,10 @@ RULES: dict[str, str] = {
     "AS016": "Trailing-stop activation without a trailing stop",
     "AS017": "Entry size above the per-symbol exposure cap",
     "AS018": "Pyramiding cap leaves no room for an add-on",
+    "AS019": "Short rules on a market that cannot be shorted",
+    "AS020": "Short entry without a short exit",
+    "AS021": "Factor bound more than once",
+    "AS022": "topN covers the whole symbol list",
     "AS101": "Duplicate symbol in submission",
     "AS102": "Every score is null",
     "AS103": "asOf is in the future",
@@ -46,6 +50,11 @@ _SUFFIX_MARKET_PREFIXES = ("cn_", "hk_")
 
 # Built-in aliases the runtime resolves without an indicators entry.
 _BUILTIN_ALIASES = {"close"}
+
+# Markets where a short position cannot be opened (cash equities, spot crypto).
+_NON_SHORTABLE_MARKETS = {"cn_stock", "cn_etf", "cn_convbond", "crypto_spot"}
+
+_RULE_KEYS = ("entry", "exit", "shortEntry", "shortExit")
 
 
 def _issue(code: str, sev: str, path: str, msg: str, hint: str = "") -> Issue:
@@ -107,6 +116,36 @@ def _check_producer(producer: dict[str, Any], path: str) -> Iterator[Issue]:
 
 def _artifact(doc: dict[str, Any]) -> Iterator[Issue]:
     market: str = doc["market"]
+    if "dsl" in doc:
+        yield from _rule_tree(doc, market)
+    yield from _factors(doc)
+
+    universe = doc.get("universe") or {}
+    for i, sym in enumerate(universe.get("symbols", [])):
+        yield from _check_symbol(market, sym, f"/universe/symbols/{i}")
+
+    yield from _check_producer(doc["producer"], "/producer")
+
+
+def _factors(doc: dict[str, Any]) -> Iterator[Issue]:
+    seen: dict[str, int] = {}
+    for i, b in enumerate(doc.get("factorBindings") or []):
+        f = b["factor"]
+        if f in seen:
+            yield _issue("AS021", "warning", f"/factorBindings/{i}/factor",
+                         f"{f} is already bound at index {seen[f]}; its weight is counted twice",
+                         "merge the two bindings into one with the combined weight")
+        else:
+            seen[f] = i
+    ranking = doc.get("ranking") or {}
+    symbols = (doc.get("universe") or {}).get("symbols") or []
+    if "topN" in ranking and symbols and ranking["topN"] >= len(symbols):
+        yield _issue("AS022", "warning", "/ranking/topN",
+                     f"topN={ranking['topN']} with {len(symbols)} symbols holds every symbol: the factor ranks nothing",
+                     "use a larger universe or a smaller topN")
+
+
+def _rule_tree(doc: dict[str, Any], market: str) -> Iterator[Issue]:
     primary: str = doc["timeframe"]
     dsl: dict[str, Any] = doc["dsl"]
     indicators: dict[str, Any] = dsl["indicators"]
@@ -132,7 +171,7 @@ def _artifact(doc: dict[str, Any]) -> Iterator[Issue]:
     yield from _cycles(graph)
 
     # AS015 - unused indicators.
-    used = {r for _, r in _ind_refs({"entry": dsl["entry"], "exit": dsl.get("exit")}, "")}
+    used = {r for _, r in _ind_refs({k: dsl.get(k) for k in _RULE_KEYS}, "")}
     frontier = list(used)
     while frontier:
         for r in graph.get(frontier.pop(), ()):
@@ -142,7 +181,7 @@ def _artifact(doc: dict[str, Any]) -> Iterator[Issue]:
     for alias in indicators:
         if alias not in used:
             yield _issue("AS015", "warning", f"/dsl/indicators/{alias}",
-                         f"indicator {alias!r} is never referenced by entry/exit")
+                         f"indicator {alias!r} is never referenced by entry/exit/shortEntry/shortExit")
 
     for alias, spec in indicators.items():
         path = f"/dsl/indicators/{alias}"
@@ -194,18 +233,22 @@ def _artifact(doc: dict[str, Any]) -> Iterator[Issue]:
                      "in bar history, so bar backtests will refuse them")
 
     exits: dict[str, Any] = doc.get("exits") or {}
-    if "exit" not in dsl and not exits:
+    if "entry" in dsl and "exit" not in dsl and not exits:
         yield _issue("AS013", "warning", "/dsl",
                      "no exit rule and no exits block: positions close only through rebalancing",
                      "add dsl.exit or an exits block (stop loss, trailing stop, ...)")
+    if "shortEntry" in dsl and "shortExit" not in dsl and not exits:
+        yield _issue("AS020", "warning", "/dsl/shortEntry",
+                     "short entry without dsl.shortExit or an exits block: short positions are never covered by a rule",
+                     "add dsl.shortExit or stops in exits")
+    if market in _NON_SHORTABLE_MARKETS:
+        for k in ("shortEntry", "shortExit"):
+            if k in dsl:
+                yield _issue("AS019", "error", f"/dsl/{k}",
+                             f"{market} cannot be sold short; short rules have no meaning there",
+                             "remove the short rules, or use a market that allows shorting (e.g. cn_future)")
 
     yield from _trade_settings(doc, exits)
-
-    universe = doc.get("universe") or {}
-    for i, sym in enumerate(universe.get("symbols", [])):
-        yield from _check_symbol(market, sym, f"/universe/symbols/{i}")
-
-    yield from _check_producer(doc["producer"], "/producer")
 
 
 def _trade_settings(doc: dict[str, Any], exits: dict[str, Any]) -> Iterator[Issue]:

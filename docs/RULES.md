@@ -127,6 +127,30 @@ With `FIXED_PCT` sizing every add-on is the same size as the entry. If
 `sizing.scaleIn.maxTotalPct` is below twice `targetPctPerOrder`, the first add-on already
 exceeds the cap and is skipped, so the strategy never pyramids.
 
+### AS019
+**Short rules on a market that cannot be shorted** · error
+
+`dsl.shortEntry` / `dsl.shortExit` on `cn_stock`, `cn_etf`, `cn_convbond` or `crypto_spot`. Cash
+equities and spot crypto cannot be sold short there; a runtime would either ignore the rules or
+reject every short order.
+
+### AS020
+**Short entry without a short exit** · warning
+
+`dsl.shortEntry` without `dsl.shortExit` and without an `exits` block: short positions are never
+covered by a rule. (When any short rule is present, `entry` / `exit` are the long side.)
+
+### AS021
+**Factor bound more than once** · warning
+
+The same `factor` appears twice in `factorBindings`; its weight is effectively doubled.
+
+### AS022
+**topN covers the whole symbol list** · warning
+
+`ranking.topN` is at least the number of symbols in a `SYMBOLS` universe, so the strategy holds
+everything and the factor ranks nothing.
+
 ## Score rules
 
 ### AS101
