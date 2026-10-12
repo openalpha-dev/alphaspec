@@ -1,4 +1,4 @@
-# AlphaSpec 0.2 — semantics
+# AlphaSpec 0.3 — semantics
 
 The JSON Schemas in `schema/<version>/` define the shape of each document. This page defines
 what the fields **mean**, where the shape alone cannot. Where this page and a runtime
@@ -14,11 +14,18 @@ Every document has `contractVersion` and `kind`.
 | `score` | model / research pipeline | cross-sectional scores or target weights (L1) |
 | `gate-result` | runtime | the verdict on a submission |
 | `evidence` | runtime | what happened when it ran |
+| `capabilities` | runtime | what it can evaluate and promote right now (0.3) |
 
 A runtime must refuse a `contractVersion` it does not implement rather than guess.
 Versions are additive: a document is validated against the schemas of the version it
-declares, so a `0.1` document carrying `0.2` fields is rejected, not half-read. Use `0.2`
-when you need trade settings (section 4a).
+declares, so a `0.1` document carrying `0.2` fields is rejected, not half-read. Use `0.2` or
+later when you need trade settings (section 4a). 0.3 adds no artifact fields; it adds the
+`capabilities` document and `tradeSettings` in gate results.
+
+A runtime must not accept a document it cannot run as written. When its data or features fall
+short (a market without enough history, an indicator it cannot compute in a backtest), it rejects
+at submission and says why; it publishes those limits in its `capabilities` document so an author
+can check before writing.
 
 ## 2. Time
 

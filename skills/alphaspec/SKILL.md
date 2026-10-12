@@ -1,6 +1,6 @@
 ---
 name: alphaspec
-description: Write, fix, validate and submit AlphaSpec documents — declarative trading-strategy artifacts (a rule tree of indicators with entry/exit conditions, universe and risk settings) and model score submissions — and run them on an AlphaSpec runtime for backtest, gate and paper trading. Use when asked to turn a trading idea into a strategy, write or edit a strategy as JSON/DSL, add stops, position sizing or fill timing, explain an AlphaSpec validation error (SCHEMA, AS001–AS105), or submit / evaluate / promote a strategy.
+description: Write, fix, validate and submit AlphaSpec documents — declarative trading-strategy artifacts (a rule tree of indicators with entry/exit conditions, universe and risk settings) and model score submissions — and run them on an AlphaSpec runtime for backtest, gate and paper trading. Use when asked to turn a trading idea into a strategy, modify an existing strategy, write or edit a strategy as JSON/DSL, add stops, position sizing or fill timing, explain an AlphaSpec validation error (SCHEMA, AS001–AS105), or submit / evaluate / promote a strategy.
 ---
 
 # AlphaSpec
@@ -22,7 +22,7 @@ If you have no shell but the `alphaspec` MCP server is connected, use its tools 
    - The user has a model or factor producing a number per symbol per day → `kind: "score"` (see `alphaspec examples 01-model-scores` and `alphaspec schema score`).
    - The user describes conditions on indicators → `kind: "artifact"`. The rest of this guide is about artifacts.
 2. **Start from an example**: `alphaspec examples` lists them; `alphaspec examples 01-ema-cross` prints one.
-3. **Choose market and timeframe.** Markets: `alphaspec docs markets`. Timeframes are exactly `tick 1m 5m 15m 30m 1h 4h 1d 1w` (`1h`, never `60m`).
+3. **Choose market and timeframe — check the runtime first** if the user wants it evaluated: `alphaspec capabilities` lists, per market, whether daily / intraday history covers the evaluation window, which indicator profiles are usable, whether a passing strategy can be promoted, and today's remaining evaluations. Do not write a document for a market or timeframe it marks not evaluable; tell the user why (the reason is in the output). Market ids: `alphaspec docs markets`. Timeframes are exactly `tick 1m 5m 15m 30m 1h 4h 1d 1w` (`1h`, never `60m`).
 4. **Find indicators** — never invent names:
    - `alphaspec catalog --market <market> --search <word>` to find candidates (search in English or Chinese: `RSI`, `moving average`, `breakout`, `均线`). Add `--lang zh` or `--lang en` to pick the description language; the default follows the locale.
    - `alphaspec catalog --type <TYPE>` for the full entry: parameter keys, defaults, ranges, meaning, unit and **pitfalls**. Read the pitfalls; several conditions that look natural can never be true (e.g. `close > DAY_HIGH`).
@@ -96,6 +96,8 @@ alphaspec result <artifactId>            # re-read the latest gate result
 alphaspec promote <artifactId>           # only after the gate passed; creates a DISABLED paper strategy
 ```
 
+- To change an existing strategy: `alphaspec strategies`, then `alphaspec export <id> -o doc.json`, edit, `alphaspec submit doc.json --evaluate`, and if it passes `alphaspec promote <artifactId> --target <id>` (publishes a new version of that strategy; same market and universe).
+- The gate result lists `trade settings used` and every value the runtime defaulted; read it before comparing results across submissions.
 - Exit code 1 = rejected, gate not passed or evaluation failed. Read the printed checks and hints, change the document, submit it again as a new artifact and count it in `searchTrials`.
 - Evaluations have a daily quota. Do not loop submissions hunting for a passing variant; that is exactly the search luck the gate corrects for.
 - Never state backtest numbers the runtime did not return. After `promote`, tell the user the strategy is created disabled and they start it themselves.

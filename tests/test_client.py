@@ -23,6 +23,27 @@ GATE = {
 }
 
 
+CAPS = {
+    "contractVersion": "0.3", "kind": "capabilities", "contractVersions": ["0.1", "0.2", "0.3"],
+    "evaluation": {
+        "daily": {"timeframes": ["1d", "1w"], "inSampleMonths": 48, "outOfSampleMonths": 12,
+                  "inSampleFrom": "2021-10-12", "outOfSampleFrom": "2025-10-12", "to": "2026-10-12"},
+        "intraday": {"timeframes": ["5m"], "inSampleMonths": 18, "outOfSampleMonths": 6},
+        "universeModes": ["SYMBOLS", "UNIVERSE"], "sizingModes": ["FIXED_PCT", "ATR_RISK"],
+        "quota": {"limit": 10, "used": 2, "remaining": 8, "resetsAt": "2026-10-12T16:00:00Z"},
+    },
+    "markets": [
+        {"id": "cn_stock", "evaluation": {"daily": {"timeframes": ["1d"], "evaluable": True},
+                                          "intraday": {"timeframes": ["5m"], "evaluable": False, "reason": "no 1m bars"}},
+         "indicatorProfiles": ["core", "ext.cn"], "promotable": True, "benchmark": {"code": "000300.SH", "name": "CSI 300"}},
+        {"id": "us_equity", "evaluation": {"daily": {"timeframes": ["1d"], "evaluable": False, "reason": "daily bars from 2026-04-02"}},
+         "indicatorProfiles": ["core"], "promotable": False, "benchmark": None},
+    ],
+}
+
+EXPORTED = json.loads((ROOT / "examples" / "artifacts" / "06-trend-with-trade-settings.json").read_text())
+
+
 class FakeRuntime(BaseHTTPRequestHandler):
     state: dict = {}
 
@@ -62,6 +83,18 @@ class FakeRuntime(BaseHTTPRequestHandler):
         if method == "POST" and p == "/api/agent/v1/artifacts/7/promote":
             s["promoted_name"] = (body or {}).get("name")
             return self._send(201, {"strategyId": 99, "created": True, "enabled": False, "next": "start it in the UI"})
+        if method == "GET" and p == "/api/agent/v1/capabilities":
+            return self._send(200, CAPS)
+        if method == "GET" and p == "/api/agent/v1/strategies":
+            return self._send(200, [{"strategyId": 438, "name": "MACD", "market": "cn_stock", "timeframe": "1d", "enabled": True}])
+        if method == "GET" and p == "/api/agent/v1/strategies/438/alphaspec":
+            return self._send(200, {"document": EXPORTED, "issues": []})
+        if method == "GET" and p == "/api/agent/v1/strategies/9/alphaspec":
+            return self._send(422, {"document": {"kind": "artifact"},
+                                    "issues": [{"code": "EXPORT_UNSUPPORTED", "severity": "ERROR", "path": "/signalMode", "message": "factor"}]})
+        if method == "POST" and p == "/api/agent/v1/artifacts/8/promote":
+            s["promote_body"] = body
+            return self._send(200, {"strategyId": 438, "created": False, "updated": True, "next": "new version"})
         if method == "GET" and p == "/api/agent/v1/artifacts":
             return self._send(200, [{"artifactId": 7, "title": "t", "evaluated": True, "passed": True}])
         return self._send(404, {"message": "no route"})
@@ -150,3 +183,30 @@ def test_cli_exit_codes(runtime, capsys, monkeypatch):
     monkeypatch.delenv("ALPHASPEC_API_KEY")
     assert main(["whoami"]) == 2
     assert main(["whoami", "--api-key", "eqk_wrong"]) == 3
+
+
+def test_capabilities_document_validates_and_prints(runtime, capsys):
+    from alphaspec import validate
+    cap = Client().capabilities()
+    assert validate(cap).ok, validate(cap).issues
+    assert main(["capabilities"]) == 0
+    out = capsys.readouterr().out
+    assert "us_equity" in out and "daily bars from 2026-04-02" in out and "evaluations today 2/10" in out
+
+
+def test_export_then_promote_as_new_version(runtime, capsys, tmp_path):
+    doc, issues = Client().export_strategy(438)
+    assert issues == [] and doc["kind"] == "artifact"
+    out_file = tmp_path / "s.json"
+    assert main(["export", "438", "-o", str(out_file)]) == 0
+    assert json.loads(out_file.read_text())["title"] == doc["title"]
+    assert main(["promote", "8", "--target", "438"]) == 0
+    assert FakeRuntime.state["promote_body"] == {"targetStrategyId": 438}
+    assert "new version" in capsys.readouterr().out
+
+
+def test_export_with_errors_returns_document_and_exit_code_1(runtime, capsys):
+    doc, issues = Client().export_strategy(9)
+    assert issues[0]["code"] == "EXPORT_UNSUPPORTED"
+    assert main(["export", "9"]) == 1
+    assert "EXPORT_UNSUPPORTED" in capsys.readouterr().err

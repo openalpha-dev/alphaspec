@@ -14,7 +14,7 @@ from referencing import Registry, Resource
 
 from ._resources import CONTRACT_VERSION, SUPPORTED_VERSIONS, load_schema, schema_dir
 
-KINDS = ("artifact", "score", "gate-result", "evidence")
+KINDS = ("artifact", "score", "gate-result", "evidence", "capabilities")
 
 
 @dataclass(frozen=True)
@@ -99,7 +99,12 @@ def validate(doc: Any, kind: str | None = None) -> Report:
                                    f"this validator understands contractVersion {', '.join(SUPPORTED_VERSIONS)}, "
                                    f"got {version!r}")])
 
-    report = Report(kind, _schema_issues(doc, kind, version or CONTRACT_VERSION))
+    version = version or CONTRACT_VERSION
+    if not (schema_dir(version) / f"{kind}.schema.json").is_file():
+        return Report(kind, [Issue("UNSUPPORTED_KIND", "error", "/kind",
+                                   f"kind {kind!r} does not exist in contract {version}")])
+
+    report = Report(kind, _schema_issues(doc, kind, version))
     if report.errors:
         # Lint rules assume a well-formed document.
         return report

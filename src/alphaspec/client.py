@@ -105,10 +105,40 @@ class Client:
                 raise TimeoutError(f"evaluation of artifact {artifact_id} still running after {timeout}s")
             time.sleep(interval)
 
-    def promote(self, artifact_id: int, name: str | None = None) -> dict[str, Any]:
+    def promote(self, artifact_id: int, name: str | None = None,
+                target_strategy_id: int | None = None) -> dict[str, Any]:
         """Turn a gate-passed artifact into a paper-trading strategy (created disabled;
-        the user starts it in the runtime's UI)."""
-        return self._request("POST", f"/artifacts/{artifact_id}/promote", {"name": name} if name else None)[1]
+        the user starts it in the runtime's UI).
+
+        With ``target_strategy_id`` the artifact is published as a new version of that existing
+        strategy instead (same market and universe required), e.g. after :meth:`export_strategy`.
+        """
+        body: dict[str, Any] = {}
+        if name:
+            body["name"] = name
+        if target_strategy_id is not None:
+            body["targetStrategyId"] = target_strategy_id
+        return self._request("POST", f"/artifacts/{artifact_id}/promote", body or None)[1]
+
+    def capabilities(self) -> dict[str, Any]:
+        """What the runtime can evaluate right now: markets with enough history, indicator
+        profiles, whether a market can be promoted, benchmarks, windows and today's quota.
+        Read it before writing a document."""
+        return self._request("GET", "/capabilities")[1]
+
+    def strategies(self) -> list[dict[str, Any]]:
+        """Your existing strategies on the runtime (the ones :meth:`export_strategy` can export)."""
+        return self._request("GET", "/strategies")[1]
+
+    def export_strategy(self, strategy_id: int) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        """Export an existing strategy as an AlphaSpec artifact. Returns ``(document, issues)``.
+
+        When ``issues`` contains errors the document does not validate as exported (for example a
+        factor strategy, which AlphaSpec cannot express before 0.4); it is returned anyway so you
+        can see how far it got.
+        """
+        _, body = self._request("GET", f"/strategies/{strategy_id}/alphaspec", allow=(422,))
+        return body.get("document"), body.get("issues", [])
 
     # ------------------------------------------------------------------ http
 

@@ -139,9 +139,9 @@ def get_indicator(type: str, lang: str = "") -> dict[str, Any]:
 
 @server.tool()
 def get_schema(kind: str) -> dict[str, Any]:
-    """JSON Schema for a document kind: artifact, score, gate-result, evidence or common."""
-    if kind not in ("artifact", "score", "gate-result", "evidence", "common"):
-        raise ToolError("kind must be one of artifact, score, gate-result, evidence, common")
+    """JSON Schema for a document kind: artifact, score, gate-result, evidence, capabilities or common."""
+    if kind not in ("artifact", "score", "gate-result", "evidence", "capabilities", "common"):
+        raise ToolError("kind must be one of artifact, score, gate-result, evidence, capabilities, common")
     return load_schema(kind)
 
 
@@ -217,10 +217,34 @@ def list_submissions() -> list[dict[str, Any]]:
 
 
 @server.tool()
-def promote(artifact_id: int, name: str = "") -> dict[str, Any]:
+def promote(artifact_id: int, name: str = "", target_strategy_id: int = 0) -> dict[str, Any]:
     """Turn a gate-passed artifact into a paper-trading strategy. It is created DISABLED; the user
-    starts it in the runtime's UI. Only call this when the user asked for it."""
-    return _call(_client().promote, artifact_id, name or None)
+    starts it in the runtime's UI. With target_strategy_id, publish it as a new version of that existing
+    strategy instead (same market and universe). Only call this when the user asked for it."""
+    return _call(_client().promote, artifact_id, name or None, target_strategy_id or None)
+
+
+@server.tool()
+def get_capabilities() -> dict[str, Any]:
+    """What the runtime can evaluate right now: per market whether daily / intraday history covers the
+    evaluation window (and if not, why), usable indicator profiles, whether a passing strategy can be
+    promoted, the out-of-sample benchmark, and today's evaluation quota. Call it before writing a document."""
+    return _call(_client().capabilities)
+
+
+@server.tool()
+def list_strategies() -> list[dict[str, Any]]:
+    """My existing strategies on the runtime, which export_strategy can turn into AlphaSpec documents."""
+    return _call(_client().strategies)
+
+
+@server.tool()
+def export_strategy(strategy_id: int) -> dict[str, Any]:
+    """Export an existing strategy as an AlphaSpec artifact to read, modify and resubmit. Returns
+    {document, issues}; errors in issues mean it does not validate as exported. After the modified
+    version passes the gate, promote it with target_strategy_id to update the original."""
+    doc, issues = _call(_client().export_strategy, strategy_id)
+    return {"document": doc, "issues": issues}
 
 
 def main() -> None:

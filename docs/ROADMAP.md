@@ -37,14 +37,15 @@ Everything a strategy needs beyond its signal, in three optional blocks next to 
 
 The per-symbol cap stays where it was, `riskProfile.maxSymbolExposurePct`.
 
-## 0.3 — Capabilities
+## 0.3 — Capabilities and round trip (done)
 
-A runtime publishes what it can do so an agent can plan before it writes:
-
-- markets with data, timeframes per market, indicator profiles available per market;
-- universe modes, benchmark used for out-of-sample comparison, where a passing strategy can be
-  promoted (paper account type per market);
-- `alphaspec capabilities` and an MCP tool; the Skill checks capabilities first.
+- `capabilities` document: per market, whether daily / intraday history covers the evaluation
+  window (and why not), usable indicator profiles, promotability, out-of-sample benchmark,
+  evaluation windows and quota. `alphaspec capabilities`, MCP `get_capabilities`; the Skill reads it first.
+- Runtimes reject at submission what they cannot run (`RUNTIME_*` codes), without using quota.
+- `gate-result.tradeSettings`: the exits, sizing and execution actually used, and every default.
+- Export: a runtime exports a strategy it holds as an artifact; a passing modification can be
+  promoted as a new version of it (`targetStrategyId`).
 
 ## 0.4 — Direction and derivatives
 
@@ -64,9 +65,7 @@ A runtime publishes what it can do so an agent can plan before it writes:
 - Whole-market universes with filters (listing age, liquidity, market cap, exclusions).
 - Dynamic universes defined by screening conditions and re-evaluated on a schedule.
 
-## Round trip and evidence
+## Evidence
 
-- **Export**: a runtime can export any strategy it holds as AlphaSpec, so an agent can read,
-  modify and resubmit an existing strategy; promotion can target a new version of it.
-- **Evidence**: execution evidence (rejections, slippage, fills, drift from target) returned as
-  `evidence` documents for promoted strategies.
+- Execution evidence (rejections, slippage, fills, drift from target) returned as `evidence`
+  documents for promoted strategies.

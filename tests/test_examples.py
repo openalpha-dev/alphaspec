@@ -27,3 +27,24 @@ def test_every_rule_has_a_conformance_case():
     names = " ".join(p.stem for p in (ROOT / "conformance" / "cases").glob("*.json"))
     missing = [code for code in RULES if code.lower() not in names]
     assert not missing, f"rules without a conformance case: {missing}"
+
+
+def test_gate_result_03_with_trade_settings_validates():
+    from alphaspec import validate
+    gate = {
+        "contractVersion": "0.3", "kind": "gate-result", "passed": False, "computedBy": "PLATFORM",
+        "checks": [{"code": "GATE_MIN_SHARPE", "metric": "sharpe", "passed": False, "actual": 0.3, "threshold": 0.8}],
+        "tradeSettings": {
+            "exits": {"stopLossPct": 8},
+            "execution": {"fillTiming": "NEXT_OPEN"},
+            "defaults": [{"field": "/sizing", "value": "runtime default: each entry buys as much as maxOrderNotional ..."},
+                         {"field": "/execution/fillTiming", "value": "NEXT_OPEN"}],
+        },
+    }
+    assert validate(gate).ok, validate(gate).issues
+    gate["tradeSettings"]["exits"] = {"stopLossPct": 0}
+    assert not validate(gate).ok
+    # 0.2 gate-results have no tradeSettings
+    gate["contractVersion"] = "0.2"
+    gate["tradeSettings"]["exits"] = {"stopLossPct": 8}
+    assert not validate(gate).ok

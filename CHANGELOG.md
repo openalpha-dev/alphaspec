@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 — 2026-10-12
+
+- Contract 0.3 (`schema/0.3/`): new `capabilities` document kind; `gate-result.tradeSettings` reports the exits,
+  sizing and execution an evaluation actually used and every value the runtime defaulted. Artifacts are unchanged
+  from 0.2.
+- Validator accepts 0.1, 0.2 and 0.3; a kind that does not exist in the declared version is `UNSUPPORTED_KIND`.
+- Client / CLI / MCP: `capabilities`, `strategies`, `export` (`export_strategy`), and `promote --target`
+  (`target_strategy_id`) to publish a passing modification as a new version of an existing strategy.
+- RUNTIME_API: the capabilities endpoint, submission checks (`RUNTIME_*` codes, no quota used), export and
+  write-back. Skill: check capabilities before writing; export–edit–resubmit flow.
+- Reference runtime: markets whose history does not cover the evaluation window are rejected at submission
+  instead of being backtested on a silently shorter in-sample; symbols with no bars in the window are rejected.
+
 ## 0.2.1 — 2026-10-11
 
 Semantics clarified to match what a runtime can apply the same way in backtests and live trading:

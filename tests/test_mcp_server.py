@@ -44,7 +44,8 @@ def test_tools_are_listed_and_no_order_tool():
         return [t.name for t in (await s.list_tools()).tools]
     names = _run({}, steps)
     assert {"validate", "search_indicators", "get_indicator", "submit", "evaluate", "gate_result",
-            "promote", "list_submissions", "whoami"} <= set(names)
+            "promote", "list_submissions", "whoami", "get_capabilities", "list_strategies",
+            "export_strategy"} <= set(names)
     assert not any("order" in n for n in names)
 
 

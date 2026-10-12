@@ -4,17 +4,20 @@
     alphaspec rules [--explain CODE]        list lint rules / why one exists
     alphaspec catalog [--market M] [--profile P] [--search TEXT] [--type T] [--lang en|zh]
                                             indicators you may use, with meaning and parameters
-    alphaspec schema KIND                   print a JSON Schema (artifact, score, gate-result, evidence, common)
+    alphaspec schema KIND                   print a JSON Schema (artifact, score, gate-result, evidence, capabilities, common)
     alphaspec examples [NAME]               list or print example documents
     alphaspec docs NAME                     print a reference document (spec, rules, markets, runtime)
     alphaspec skill [--install DIR]         print the Agent Skill, or write it to DIR/alphaspec/SKILL.md
 
     alphaspec whoami                        check the API key against the runtime
+    alphaspec capabilities                  what the runtime can evaluate now (markets, history, quota)
     alphaspec submit FILE [--evaluate] [--wait] [--promote [--name N]]
     alphaspec evaluate ARTIFACT_ID [--wait]
     alphaspec result ARTIFACT_ID
     alphaspec list
-    alphaspec promote ARTIFACT_ID [--name N]
+    alphaspec promote ARTIFACT_ID [--name N] [--target STRATEGY_ID]
+    alphaspec strategies                    my existing strategies on the runtime
+    alphaspec export STRATEGY_ID [-o FILE]  export one as an AlphaSpec artifact to edit and resubmit
 
 Runtime commands read ALPHASPEC_BASE_URL and ALPHASPEC_API_KEY (or --base-url / --api-key).
 Exit codes: 0 ok · 1 rejected, gate not passed or evaluation failed · 2 usage · 3 runtime / network error.
@@ -179,6 +182,14 @@ def _print_gate(args: argparse.Namespace, gate: dict[str, Any]) -> int:
             # Printed for passing checks too: without it a reader guesses what the number is.
             if c.get("hint"):
                 print(f"      {c['hint']}")
+        trade = gate.get("tradeSettings")
+        if trade:
+            print("  trade settings used:")
+            for block in ("exits", "sizing", "execution"):
+                if trade.get(block):
+                    print(f"    {block}: {json.dumps(trade[block], ensure_ascii=False)}")
+            for d in trade.get("defaults", []):
+                print(f"    default {d.get('field')}: {d.get('value')}")
     report = validate(gate)
     if not report.ok:
         print("warning: runtime returned a gate-result that does not match the contract:", file=sys.stderr)
@@ -189,7 +200,9 @@ def _print_gate(args: argparse.Namespace, gate: dict[str, Any]) -> int:
 
 def _cmd_whoami(args: argparse.Namespace) -> int:
     me = _client(args).whoami()
-    _out(args, me, f"{me.get('username')} · key {me.get('keyId')} · contract {me.get('contractVersion')}\n"
+    q = me.get("evaluationQuota") or {}
+    quota = f" · evaluations today {q.get('used')}/{q.get('limit')}" if q else ""
+    _out(args, me, f"{me.get('username')} · key {me.get('keyId')} · contract {me.get('contractVersion')}{quota}\n"
                    f"  can:    {', '.join(me.get('canDo', []))}\n"
                    f"  cannot: {', '.join(me.get('cannotDo', []))}")
     return 0
@@ -250,9 +263,70 @@ def _cmd_list(args: argparse.Namespace) -> int:
 
 
 def _promote(args: argparse.Namespace, c: Client, artifact_id: int) -> int:
-    res = c.promote(artifact_id, getattr(args, "name", None))
+    res = c.promote(artifact_id, getattr(args, "name", None), getattr(args, "target", None))
+    if res.get("updated"):
+        _out(args, res, f"strategy {res.get('strategyId')} updated to a new version — {res.get('next')}")
+        return 0
     what = "created" if res.get("created") else "already exists"
     _out(args, res, f"paper strategy {res.get('strategyId')} {what} (disabled) — {res.get('next')}")
+    return 0
+
+
+def _cmd_capabilities(args: argparse.Namespace) -> int:
+    cap = _client(args).capabilities()
+    if args.json:
+        print(json.dumps(cap, ensure_ascii=False, indent=2))
+        return 0
+    ev = cap.get("evaluation", {})
+    q = ev.get("quota") or {}
+    print(f"contract versions {', '.join(cap.get('contractVersions', []))}"
+          + (f" · evaluations today {q.get('used')}/{q.get('limit')}" if q else ""))
+    for tier in ("daily", "intraday"):
+        w = ev.get(tier) or {}
+        print(f"{tier:8} {' '.join(w.get('timeframes', []))}: in-sample {w.get('inSampleFrom')} ~ "
+              f"{w.get('outOfSampleFrom')}, out-of-sample ~ {w.get('to')}")
+    print(f"universe modes: {', '.join(ev.get('universeModes', []))} · sizing: {', '.join(ev.get('sizingModes', []))}")
+    for m in cap.get("markets", []):
+        tiers = m.get("evaluation", {})
+        cells = []
+        for tier in ("daily", "intraday"):
+            t = tiers.get(tier) or {}
+            cells.append(f"{tier} {'yes' if t.get('evaluable') else 'no'}")
+        promote = "promotable" if m.get("promotable") else "evaluate only"
+        bench = (m.get("benchmark") or {}).get("name") or "no benchmark"
+        print(f"  {m.get('id'):12} {' · '.join(cells)} · {promote} · {bench} · profiles {', '.join(m.get('indicatorProfiles', []))}")
+        for tier in ("daily", "intraday"):
+            t = tiers.get(tier) or {}
+            if not t.get("evaluable") and t.get("reason"):
+                print(f"      {tier}: {t['reason']}")
+    return 0
+
+
+def _cmd_strategies(args: argparse.Namespace) -> int:
+    rows = _client(args).strategies()
+    if args.json:
+        print(json.dumps(rows, ensure_ascii=False, indent=2))
+        return 0
+    for r in rows:
+        state = "running" if r.get("enabled") else "stopped"
+        print(f"{r.get('strategyId'):>8}  {r.get('market'):11} {r.get('timeframe'):4} {state:8} {r.get('name')}")
+    return 0
+
+
+def _cmd_export(args: argparse.Namespace) -> int:
+    doc, issues = _client(args).export_strategy(args.strategy_id)
+    text = json.dumps(doc, ensure_ascii=False, indent=2)
+    if args.output:
+        Path(args.output).write_text(text + "\n", encoding="utf-8")
+    else:
+        print(text)
+    errors = [i for i in issues if str(i.get("severity", "")).lower() == "error"]
+    for i in issues:
+        print(f"  {str(i.get('severity', '')).upper():7} {i.get('code')} at {i.get('path') or '/'}: {i.get('message')}",
+              file=sys.stderr)
+    if errors:
+        print(f"exported with {len(errors)} error(s): the document does not validate as is", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -286,7 +360,7 @@ def main(argv: list[str] | None = None) -> int:
     c.set_defaults(func=_cmd_catalog)
 
     sc = sub.add_parser("schema", help="print a JSON Schema")
-    sc.add_argument("kind", choices=["artifact", "score", "gate-result", "evidence", "common"])
+    sc.add_argument("kind", choices=["artifact", "score", "gate-result", "evidence", "capabilities", "common"])
     sc.set_defaults(func=_cmd_schema)
 
     ex = sub.add_parser("examples", help="list or print example documents")
@@ -334,7 +408,20 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("promote", parents=[remote], help="turn a gate-passed artifact into a paper strategy")
     p.add_argument("artifact_id", type=int)
     p.add_argument("--name")
+    p.add_argument("--target", type=int, metavar="STRATEGY_ID",
+                   help="publish as a new version of this existing strategy instead of creating one")
     p.set_defaults(func=_cmd_promote)
+
+    cp = sub.add_parser("capabilities", parents=[remote], help="what the runtime can evaluate now")
+    cp.set_defaults(func=_cmd_capabilities)
+
+    st = sub.add_parser("strategies", parents=[remote], help="my existing strategies on the runtime")
+    st.set_defaults(func=_cmd_strategies)
+
+    xp = sub.add_parser("export", parents=[remote], help="export an existing strategy as an AlphaSpec artifact")
+    xp.add_argument("strategy_id", type=int)
+    xp.add_argument("-o", "--output", help="write to this file instead of stdout")
+    xp.set_defaults(func=_cmd_export)
 
     args = parser.parse_args(argv)
     try:

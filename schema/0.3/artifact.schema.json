@@ -1,0 +1,847 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openalpha-dev.github.io/alphaspec/schema/0.3/artifact.schema.json",
+  "title": "AlphaSpec Strategy Artifact (L2)",
+  "description": "A complete, declarative strategy: rule tree, parameters, universe, trade settings (exits, sizing, execution) and risk overrides. Contains no code; everything here can be validated before it runs.",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "kind",
+    "title",
+    "market",
+    "timeframe",
+    "dsl",
+    "producer"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "contractVersion": {
+      "$ref": "common.schema.json#/$defs/contractVersion"
+    },
+    "kind": {
+      "const": "artifact"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "note": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "market": {
+      "$ref": "common.schema.json#/$defs/marketId"
+    },
+    "timeframe": {
+      "$ref": "common.schema.json#/$defs/timeframe",
+      "description": "Primary timeframe: the bar series the rule tree is evaluated on."
+    },
+    "templateKey": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_]+$",
+      "description": "Optional. Names a runtime template this artifact instantiates. Omit it for a self-contained rule tree."
+    },
+    "templateRevision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Pins the template revision so a template edit cannot silently change this artifact's meaning."
+    },
+    "signalMode": {
+      "type": "string",
+      "enum": [
+        "AUTO",
+        "FACTOR_ONLY",
+        "RULE_ONLY",
+        "FACTOR_AND_RULE",
+        "FACTOR_OR_RULE"
+      ],
+      "default": "AUTO",
+      "description": "How factor ranking and the rule tree combine. AUTO lets the runtime infer it from what is present."
+    },
+    "dsl": {
+      "$ref": "#/$defs/dsl"
+    },
+    "exits": {
+      "$ref": "#/$defs/exits"
+    },
+    "sizing": {
+      "$ref": "#/$defs/sizing"
+    },
+    "execution": {
+      "$ref": "#/$defs/execution"
+    },
+    "riskProfile": {
+      "$ref": "common.schema.json#/$defs/riskProfile"
+    },
+    "universe": {
+      "$ref": "#/$defs/universe"
+    },
+    "factorBindings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/factorBinding"
+      }
+    },
+    "producer": {
+      "$ref": "common.schema.json#/$defs/producer"
+    }
+  },
+  "$defs": {
+    "dsl": {
+      "type": "object",
+      "required": [
+        "version",
+        "indicators",
+        "entry"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "params": {
+          "type": "object",
+          "description": "Named constants referenced from anywhere in the tree as {\"ref\": \"name\"}. This is what parameter scans vary.",
+          "additionalProperties": {
+            "type": [
+              "number",
+              "string",
+              "boolean"
+            ]
+          }
+        },
+        "indicators": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Alias -> indicator. Aliases are referenced from rules as {\"ind\": \"alias\"}.",
+          "propertyNames": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/indicator"
+          }
+        },
+        "entry": {
+          "$ref": "#/$defs/rule"
+        },
+        "exit": {
+          "$ref": "#/$defs/rule"
+        }
+      }
+    },
+    "indicator": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "description": "One indicator instance. 'type' must exist in the indicator catalog (catalog/indicators.json); the remaining keys are that type's parameters.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$"
+        },
+        "timeframe": {
+          "$ref": "common.schema.json#/$defs/timeframe",
+          "description": "Defaults to the artifact's primary timeframe."
+        },
+        "barPolicy": {
+          "type": "string",
+          "enum": [
+            "CLOSED",
+            "LIVE"
+          ],
+          "default": "CLOSED",
+          "description": "For an indicator on a higher timeframe than the primary one: CLOSED uses only completed higher-timeframe bars; LIVE uses the still-forming bar. LIVE on a higher timeframe is look-ahead in a backtest and is rejected by rule AS003."
+        },
+        "in": {
+          "$ref": "#/$defs/operand"
+        },
+        "left": {
+          "$ref": "#/$defs/operand"
+        },
+        "right": {
+          "$ref": "#/$defs/operand"
+        }
+      },
+      "additionalProperties": true
+    },
+    "operand": {
+      "description": "Something that yields a number series. Constants are written {\"const\": 0}; a bare number is not an operand (the reference runtime would compile it to nothing).",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "ind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "ind": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "const"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "const": {
+              "type": "number"
+            }
+          }
+        },
+        {
+          "$ref": "common.schema.json#/$defs/paramRef"
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "left"
+          ],
+          "additionalProperties": false,
+          "description": "Inline arithmetic. ABS is unary (no right).",
+          "properties": {
+            "op": {
+              "enum": [
+                "ADD",
+                "SUB",
+                "MUL",
+                "DIV",
+                "ABS",
+                "MAX",
+                "MIN"
+              ]
+            },
+            "left": {
+              "$ref": "#/$defs/operand"
+            },
+            "right": {
+              "$ref": "#/$defs/operand"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "rule"
+          ],
+          "additionalProperties": false,
+          "description": "COUNT = how many of the last N bars satisfied rule; BARS_SINCE = bars since rule last held.",
+          "properties": {
+            "op": {
+              "enum": [
+                "COUNT",
+                "BARS_SINCE"
+              ]
+            },
+            "rule": {
+              "$ref": "#/$defs/rule"
+            },
+            "bars": {
+              "$ref": "common.schema.json#/$defs/number"
+            }
+          }
+        }
+      ]
+    },
+    "rule": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "description": "A boolean node. Comparison nodes take operands; logical nodes take rules.",
+      "properties": {
+        "type": {
+          "enum": [
+            "AND",
+            "OR",
+            "NOT",
+            "GT",
+            "GTE",
+            "LT",
+            "LTE",
+            "EQ",
+            "NEQ",
+            "CROSS_UP",
+            "CROSS_DOWN",
+            "HOLD_FOR",
+            "WITHIN",
+            "SEQUENCE",
+            "DAY_LATCH",
+            "TOUCH",
+            "BREAK",
+            "RECLAIM",
+            "RETEST",
+            "HOLD",
+            "VOL_BREAK",
+            "MOM_BREAK",
+            "GAP_UP",
+            "GAP_DOWN"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "AND",
+                  "OR"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "left",
+              "right"
+            ],
+            "properties": {
+              "left": {
+                "$ref": "#/$defs/rule"
+              },
+              "right": {
+                "$ref": "#/$defs/rule"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "NOT",
+                  "DAY_LATCH"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "rule"
+            ],
+            "properties": {
+              "rule": {
+                "$ref": "#/$defs/rule"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "GT",
+                  "GTE",
+                  "LT",
+                  "LTE",
+                  "EQ",
+                  "NEQ",
+                  "CROSS_UP",
+                  "CROSS_DOWN"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "left",
+              "right"
+            ],
+            "properties": {
+              "left": {
+                "$ref": "#/$defs/operand"
+              },
+              "right": {
+                "$ref": "#/$defs/operand"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "HOLD_FOR",
+                  "WITHIN"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "rule"
+            ],
+            "description": "HOLD_FOR: rule held on each of the last N bars. WITHIN: rule held on at least one of the last N bars. bars defaults to 3.",
+            "properties": {
+              "rule": {
+                "$ref": "#/$defs/rule"
+              },
+              "bars": {
+                "$ref": "common.schema.json#/$defs/number"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "SEQUENCE"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "first",
+              "then"
+            ],
+            "description": "'then' holds now, and 'first' held within the preceding N bars.",
+            "properties": {
+              "first": {
+                "$ref": "#/$defs/rule"
+              },
+              "then": {
+                "$ref": "#/$defs/rule"
+              },
+              "bars": {
+                "$ref": "common.schema.json#/$defs/number"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "TOUCH",
+                  "BREAK",
+                  "RECLAIM",
+                  "RETEST",
+                  "HOLD"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "level"
+            ],
+            "description": "Price-vs-level events. level is any operand (a support line, a moving average, a pivot).",
+            "properties": {
+              "level": {
+                "$ref": "#/$defs/operand"
+              },
+              "direction": {
+                "enum": [
+                  "UP",
+                  "DOWN"
+                ]
+              },
+              "bars": {
+                "$ref": "common.schema.json#/$defs/number"
+              },
+              "tolerancePct": {
+                "$ref": "common.schema.json#/$defs/number"
+              },
+              "price": {
+                "enum": [
+                  "CLOSE",
+                  "HIGH",
+                  "LOW"
+                ]
+              },
+              "minVolumeRatio": {
+                "$ref": "common.schema.json#/$defs/number"
+              },
+              "maxVolumeRatio": {
+                "$ref": "common.schema.json#/$defs/number"
+              },
+              "volumeBaseline": {
+                "enum": [
+                  "PRIOR_BARS",
+                  "SAME_TIME"
+                ]
+              },
+              "volumeBars": {
+                "$ref": "common.schema.json#/$defs/number"
+              },
+              "volumeDays": {
+                "$ref": "common.schema.json#/$defs/number"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "VOL_BREAK"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "price",
+              "atr",
+              "multiplier"
+            ],
+            "properties": {
+              "price": {
+                "$ref": "#/$defs/operand"
+              },
+              "atr": {
+                "$ref": "#/$defs/operand"
+              },
+              "multiplier": {
+                "$ref": "common.schema.json#/$defs/number"
+              },
+              "period": {
+                "$ref": "common.schema.json#/$defs/number"
+              },
+              "direction": {
+                "enum": [
+                  "UP",
+                  "DOWN"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "MOM_BREAK"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "fast",
+              "slow"
+            ],
+            "properties": {
+              "fast": {
+                "$ref": "#/$defs/operand"
+              },
+              "slow": {
+                "$ref": "#/$defs/operand"
+              },
+              "atr": {
+                "$ref": "#/$defs/operand"
+              },
+              "price": {
+                "$ref": "#/$defs/operand"
+              },
+              "atrThreshold": {
+                "$ref": "common.schema.json#/$defs/number"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "GAP_UP",
+                  "GAP_DOWN"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "ind",
+              "threshold"
+            ],
+            "properties": {
+              "ind": {
+                "$ref": "#/$defs/operand"
+              },
+              "threshold": {
+                "$ref": "common.schema.json#/$defs/number"
+              },
+              "atr": {
+                "$ref": "#/$defs/operand"
+              },
+              "atrMultiplier": {
+                "$ref": "common.schema.json#/$defs/number"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "universe": {
+      "type": "object",
+      "required": [
+        "mode"
+      ],
+      "additionalProperties": false,
+      "description": "Which instruments the strategy runs on. The three modes are mutually exclusive.",
+      "properties": {
+        "mode": {
+          "enum": [
+            "SYMBOLS",
+            "UNIVERSE",
+            "ALL_MARKET"
+          ]
+        },
+        "symbols": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common.schema.json#/$defs/symbol"
+          }
+        },
+        "universeId": {
+          "type": [
+            "string",
+            "integer"
+          ],
+          "description": "A named universe defined in the runtime."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "SYMBOLS"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "symbols"
+            ],
+            "not": {
+              "required": [
+                "universeId"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "UNIVERSE"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "universeId"
+            ],
+            "not": {
+              "required": [
+                "symbols"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "ALL_MARKET"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "symbols"
+                  ]
+                },
+                {
+                  "required": [
+                    "universeId"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "factorBinding": {
+      "type": "object",
+      "required": [
+        "factor",
+        "direction"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "factor": {
+          "type": [
+            "string",
+            "integer"
+          ],
+          "description": "Factor identifier in the runtime's factor library."
+        },
+        "direction": {
+          "$ref": "common.schema.json#/$defs/direction"
+        },
+        "weight": {
+          "type": "number",
+          "default": 1
+        },
+        "topN": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Cross-sectional selection size (FACTOR_ONLY)."
+        }
+      }
+    },
+    "exits": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Position exits that run alongside dsl.exit, evaluated on bar closes for long positions. Omit a field to leave that exit off; there are no implicit defaults. Percentages are 0-100 and measured from the average entry price.",
+      "properties": {
+        "stopLossPct": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "description": "Close when the price is this many percent below the entry price."
+        },
+        "takeProfitPct": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "description": "Close when the price is this many percent above the entry price."
+        },
+        "trailingStopPct": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "description": "Close when the price falls this many percent from the highest close since entry."
+        },
+        "trailingArmProfitPct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "The trailing stop only starts once the position has gained this much. 0 means it trails from entry. Has no effect without trailingStopPct (rule AS016)."
+        },
+        "atrStopMultiplier": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 50,
+          "description": "Close when the price is this many ATR(14) below the entry price."
+        },
+        "atrTakeProfitMultiplier": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 50,
+          "description": "Close when the price is this many ATR(14) above the entry price."
+        },
+        "minHoldDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365,
+          "description": "Trading days after entry during which nothing closes the position: neither the exits above nor dsl.exit. The entry day is day 0; weekends and market holidays do not count, on every timeframe (3 on a 5m strategy is three trading days). Use it to keep a fresh position from being shaken out by short-term noise; omit it if that is not wanted."
+        },
+        "noNewHighDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 250,
+          "description": "Close when this many trading days pass without a new highest close since entry."
+        }
+      }
+    },
+    "sizing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "targetPctPerOrder"
+      ],
+      "description": "How large each position is and how many are held. Omit the block to use the runtime's default sizing (see the runtime's documentation); write it whenever position size matters.",
+      "properties": {
+        "positionMode": {
+          "enum": [
+            "FIXED_PCT",
+            "ATR_RISK"
+          ],
+          "default": "FIXED_PCT",
+          "description": "FIXED_PCT: each entry buys targetPctPerOrder percent of current equity. ATR_RISK: each entry is sized so that a move of one ATR(14) against it costs targetPctPerOrder percent of equity (turtle-style; 1 is typical). Both round down to the market's lot and are capped by riskProfile.maxSymbolExposurePct and by cash. Under ATR_RISK no entry is made while ATR cannot be computed."
+        },
+        "targetPctPerOrder": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "description": "FIXED_PCT: percent of equity per entry. ATR_RISK: percent of equity risked per ATR."
+        },
+        "maxHoldings": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "description": "At most this many symbols held at once. Buys already queued (e.g. for the next open) count as held, so several signals on the same bar cannot overshoot. Further entry signals are skipped while the book is full."
+        },
+        "scaleIn": {
+          "$ref": "#/$defs/scaleIn"
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "When a signal becomes a fill.",
+      "properties": {
+        "fillTiming": {
+          "enum": [
+            "NEXT_OPEN",
+            "BAR_CLOSE"
+          ],
+          "default": "NEXT_OPEN",
+          "description": "NEXT_OPEN: the signal is confirmed on a bar's close and filled at the next bar's open (on daily bars: signal after the close, order at the next session's open). BAR_CLOSE: filled at the close of the signal bar; on daily bars that means trading in the last minutes of the session on a signal computed from a nearly finished bar."
+        }
+      }
+    },
+    "scaleIn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maxAddOns",
+        "spacingAtr"
+      ],
+      "description": "Pyramiding: add to a winning position each time the close rises spacingAtr × ATR(14) above the last buy price. Each add-on is sized like an entry (positionMode / targetPctPerOrder). Filled like any other order under execution.fillTiming: at the triggering bar's close (BAR_CLOSE) or at the next bar's open (NEXT_OPEN). No add-on is made on a bar that also closes the position.",
+      "properties": {
+        "maxAddOns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Add-ons after the initial entry."
+        },
+        "spacingAtr": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "description": "Distance between buys, in ATR(14)."
+        },
+        "maxTotalPct": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "description": "An add-on that would take the symbol above this percent of equity is skipped (not trimmed). Omit for no cap beyond riskProfile.maxSymbolExposurePct."
+        }
+      }
+    }
+  }
+}
