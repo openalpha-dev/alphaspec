@@ -76,6 +76,7 @@ class FakeRuntime(BaseHTTPRequestHandler):
         n = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(n)) if n else None
         p, s = self.path, self.state
+        s["accept_language"] = self.headers.get("Accept-Language")
         if method == "GET" and p == "/api/agent/v1/whoami":
             return self._send(200, {"username": "dev", "keyId": "AAAAAAAAAAAA", "contractVersion": "0.1",
                                     "canDo": ["submit"], "cannotDo": ["orders"]})
@@ -151,6 +152,19 @@ def runtime(monkeypatch):
 
 def test_whoami_sends_bearer_key(runtime):
     assert Client().whoami()["keyId"] == "AAAAAAAAAAAA"
+
+
+def test_language_goes_out_as_accept_language(runtime, monkeypatch, capsys):
+    monkeypatch.setenv("ALPHASPEC_LANG", "en")
+    Client().whoami()
+    assert FakeRuntime.state["accept_language"] == "en"
+    Client(lang="zh").whoami()
+    assert FakeRuntime.state["accept_language"] == "zh-CN"
+    with pytest.raises(ValueError):
+        Client(lang="fr")
+    assert main(["whoami", "--lang", "zh"]) == 0
+    assert FakeRuntime.state["accept_language"] == "zh-CN"
+    capsys.readouterr()
 
 
 def test_wrong_key_is_an_error(runtime):

@@ -18,6 +18,7 @@ import urllib.request
 from typing import Any
 
 from .validate import Report, validate
+from ._resources import default_lang
 
 API_PREFIX = "/api/agent/v1"
 
@@ -45,7 +46,8 @@ class EvaluationFailed(AlphaSpecError):
 
 
 class Client:
-    def __init__(self, base_url: str | None = None, api_key: str | None = None, timeout: float = 30.0):
+    def __init__(self, base_url: str | None = None, api_key: str | None = None, timeout: float = 30.0,
+                 lang: str | None = None):
         base_url = base_url or os.environ.get("ALPHASPEC_BASE_URL")
         api_key = api_key or os.environ.get("ALPHASPEC_API_KEY")
         if not base_url:
@@ -55,6 +57,11 @@ class Client:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
+        # Language of human-readable text in responses (messages, hints, reasons). Codes, paths and metric
+        # keys never change with it -- branch on those. Default: $ALPHASPEC_LANG, else from the locale.
+        if lang is not None and lang not in ("en", "zh"):
+            raise ValueError("lang must be 'en' or 'zh'")
+        self.lang = lang or default_lang()
 
     # ------------------------------------------------------------------ calls
 
@@ -187,6 +194,7 @@ class Client:
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
                 "Accept": "application/json",
+                "Accept-Language": "en" if self.lang == "en" else "zh-CN",
                 "User-Agent": "alphaspec-python",
             },
         )

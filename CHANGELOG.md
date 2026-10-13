@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.1 — 2026-10-13
+
+- Response language: the runtime agent API answers in English or Chinese (`?lang=` / `Accept-Language`,
+  reply carries `Content-Language`). Codes, paths and metric keys are unchanged; only human-readable text
+  is translated, including gate results stored before this release.
+- Client `lang=` (default `$ALPHASPEC_LANG`, else the locale) sends `Accept-Language`; CLI `--lang` on every
+  runtime command; MCP runtime tools take `lang`. Skill: reply in the user's language, decide by codes.
+- Institution keys: an institution tenant issues one agent key that acts as an ordinary user of the tenant
+  (`whoami.tenantType = INSTITUTION`); it can promote on every enabled market. Promoted strategies are always
+  created disabled for both key kinds.
+- Reference runtime: US equities (`us_equity`) now have the 4 + 1 years of daily history evaluation needs;
+  JSON Schema messages are always in English regardless of the server locale.
+
 ## 0.4.0 — 2026-10-12
 
 - Contract 0.4 (`schema/0.4/`): factor-ranked strategies (`signalMode`, `factorBindings` with `factor` /

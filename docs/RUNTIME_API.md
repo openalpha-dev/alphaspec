@@ -9,12 +9,29 @@ Authorization: Bearer eqk_<keyId>_<secret>
 ```
 
 An API key can submit documents, run evaluations and read results. It **cannot** place
-orders, operate accounts or manage keys; the runtime rejects it everywhere outside this
-prefix.
+orders, start or stop strategies, operate accounts or manage keys; the runtime rejects it
+everywhere outside this prefix.
+
+Two kinds of key holders (`whoami.tenantType`):
+
+- `CONSUMER` — an individual user's own key (created in their profile). Promotion follows the
+  consumer product's rules (plan, indicator tiers, market whitelist).
+- `INSTITUTION` — one agent for a whole institution tenant, issued by its administrators. The key
+  acts as an ordinary user of that tenant: every enabled market can be promoted, no plan limits.
+
+Either way a promoted strategy is created **disabled**; a person enables it (and binds an
+account) in the runtime's UI.
+
+**Response language.** Human-readable text (`message`, `hint`, `reason`, `error`, notes) follows
+`?lang=en|zh`, else the `Accept-Language` header, else the runtime's default (Chinese for the reference
+runtime); the reply carries `Content-Language`. Codes (`AS0xx`, `RUNTIME_*`, `GATE_*`), JSON paths,
+metric keys and numbers never change with the language — branch on those, show the text to people.
+The Python client sends `Accept-Language` from `Client(lang=...)` / `--lang` / `$ALPHASPEC_LANG`; the MCP
+tools take a `lang` argument. Your own document text (names, descriptions) is never translated.
 
 | Method & path | Success | Other responses |
 |---|---|---|
-| `GET /whoami` | 200 identity, `contractVersion` (latest) and `contractVersions` (all accepted), today's `evaluationQuota`, what the key can and cannot do | 401 invalid / revoked / expired key |
+| `GET /whoami` | 200 identity, `tenantType` (`CONSUMER` / `INSTITUTION`), `contractVersion` (latest) and `contractVersions` (all accepted), today's `evaluationQuota`, what the key can and cannot do | 401 invalid / revoked / expired key |
 | `GET /capabilities` | 200 `capabilities` document (contract 0.3): what can be evaluated and promoted right now | |
 | `POST /artifacts` — body: an `artifact` document | 201 `{artifactId, warnings}` | 422 `{issues}` (validator codes, plus `RUNTIME_*` codes below) · 400 unusable universe |
 | `GET /artifacts` | 200 your submissions, newest first, with the latest verdict | |

@@ -167,7 +167,7 @@ def _cmd_skill(args: argparse.Namespace) -> int:
 
 
 def _client(args: argparse.Namespace) -> Client:
-    return Client(base_url=args.base_url, api_key=args.api_key)
+    return Client(base_url=args.base_url, api_key=args.api_key, lang=getattr(args, "lang", None))
 
 
 def _out(args: argparse.Namespace, obj: Any, human: str) -> None:
@@ -463,6 +463,8 @@ def main(argv: list[str] | None = None) -> int:
     remote.add_argument("--base-url", help="runtime base URL (default: $ALPHASPEC_BASE_URL)")
     remote.add_argument("--api-key", help="API key (default: $ALPHASPEC_API_KEY)")
     remote.add_argument("--json", action="store_true", help="machine-readable output")
+    remote.add_argument("--lang", choices=["en", "zh"], default=None,
+                        help="language of messages from the runtime (default: $ALPHASPEC_LANG, else from the locale)")
 
     w = sub.add_parser("whoami", parents=[remote], help="check the API key")
     w.set_defaults(func=_cmd_whoami)

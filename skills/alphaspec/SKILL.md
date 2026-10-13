@@ -31,7 +31,7 @@ If you have no shell but the `alphaspec` MCP server is connected, use its tools 
    alphaspec validate doc.json          # fix every ERROR; treat WARNINGs as probable mistakes
    alphaspec rules --explain AS003      # why a rule exists and how to fix it
    ```
-6. **Submit and evaluate** (only if the user wants it run; see below).
+6. **Submit and evaluate** (only if the user wants it run; see below). Ask the runtime to reply in the language you are using with the user: `--lang en|zh` on CLI commands, or the `lang` argument of the MCP tools. Decide by the codes (`AS0xx`, `RUNTIME_*`, `GATE_*`) and `metric` keys, which never change with the language.
 
 ## Rule tree essentials
 

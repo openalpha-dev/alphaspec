@@ -42,9 +42,9 @@ strategy; tell the user to start it themselves. No tool here can place orders.""
 server = MCPServer("alphaspec", instructions=INSTRUCTIONS, version=__version__)
 
 
-def _client() -> Client:
+def _client(lang: str = "") -> Client:
     try:
-        return Client()
+        return Client(lang=_lang(lang))
     except ValueError as exc:
         raise ToolError(f"{exc}. Set it in this MCP server's env block in the client config.") from None
 
@@ -177,99 +177,99 @@ def get_doc(name: str) -> str:
 # ---------------------------------------------------------------- runtime
 
 @server.tool()
-def whoami() -> dict[str, Any]:
-    """Check the configured API key: user, contract version, what the key can and cannot do."""
-    return _call(_client().whoami)
+def whoami(lang: str = "") -> dict[str, Any]:
+    """Check the configured API key: user, contract version, what the key can and cannot do. lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
+    return _call(_client(lang).whoami)
 
 
 @server.tool()
-def submit(document: dict[str, Any] | str) -> dict[str, Any]:
+def submit(document: dict[str, Any] | str, lang: str = "") -> dict[str, Any]:
     """Validate locally, then submit an artifact to the runtime. Returns {accepted, artifactId,
-    warnings} or {accepted: false, issues}. Submitting does not run anything; call evaluate."""
+    warnings} or {accepted: false, issues}. Submitting does not run anything; call evaluate. lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
     doc = _as_doc(document)
     try:
-        res = _call(_client().submit, doc)
+        res = _call(_client(lang).submit, doc)
     except Rejected as exc:  # subclass of AlphaSpecError, but a normal outcome for an agent
         return {"accepted": False, "issues": exc.issues}
     return {"accepted": True, **res}
 
 
 @server.tool()
-def evaluate(artifact_id: int) -> dict[str, Any]:
+def evaluate(artifact_id: int, lang: str = "") -> dict[str, Any]:
     """Start a platform evaluation (one backtest, in-sample and out-of-sample segments chosen by the
-    runtime). Returns immediately; poll gate_result every few seconds. Uses the daily quota."""
-    return _call(_client().evaluate, artifact_id)
+    runtime). Returns immediately; poll gate_result every few seconds. Uses the daily quota. lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
+    return _call(_client(lang).evaluate, artifact_id)
 
 
 @server.tool()
-def gate_result(artifact_id: int) -> dict[str, Any]:
+def gate_result(artifact_id: int, lang: str = "") -> dict[str, Any]:
     """Latest evaluation of an artifact. state is RUNNING (poll again later), FAILED (error says why)
     or DONE (result is the gate-result document). Each check names its number in `metric`; read it
-    instead of guessing from the code."""
-    state, body = _call(_client().gate_result, artifact_id)
+    instead of guessing from the code. lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
+    state, body = _call(_client(lang).gate_result, artifact_id)
     return {"state": state, "result" if state == "DONE" else "detail": body}
 
 
 @server.tool()
-def list_submissions() -> list[dict[str, Any]]:
-    """My submitted artifacts, newest first, with the latest verdict."""
-    return _call(_client().list)
+def list_submissions(lang: str = "") -> list[dict[str, Any]]:
+    """My submitted artifacts, newest first, with the latest verdict. lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
+    return _call(_client(lang).list)
 
 
 @server.tool()
-def promote(artifact_id: int, name: str = "", target_strategy_id: int = 0) -> dict[str, Any]:
+def promote(artifact_id: int, name: str = "", target_strategy_id: int = 0, lang: str = "") -> dict[str, Any]:
     """Turn a gate-passed artifact into a paper-trading strategy. It is created DISABLED; the user
     starts it in the runtime's UI. With target_strategy_id, publish it as a new version of that existing
-    strategy instead (same market and universe). Only call this when the user asked for it."""
-    return _call(_client().promote, artifact_id, name or None, target_strategy_id or None)
+    strategy instead (same market and universe). Only call this when the user asked for it. lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
+    return _call(_client(lang).promote, artifact_id, name or None, target_strategy_id or None)
 
 
 @server.tool()
-def get_capabilities() -> dict[str, Any]:
+def get_capabilities(lang: str = "") -> dict[str, Any]:
     """What the runtime can evaluate right now: per market whether daily / intraday history covers the
     evaluation window (and if not, why), usable indicator profiles, whether a passing strategy can be
-    promoted, the out-of-sample benchmark, and today's evaluation quota. Call it before writing a document."""
-    return _call(_client().capabilities)
+    promoted, the out-of-sample benchmark, and today's evaluation quota. Call it before writing a document. lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
+    return _call(_client(lang).capabilities)
 
 
 @server.tool()
-def list_factors() -> dict[str, Any]:
+def list_factors(lang: str = "") -> dict[str, Any]:
     """Factors you can bind in factorBindings (with source, category, description, whether your plan unlocks
-    them) and your uploaded score series (bind those as "score:<scoreName>")."""
-    return _call(_client().factors)
+    them) and your uploaded score series (bind those as "score:<scoreName>"). lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
+    return _call(_client(lang).factors)
 
 
 @server.tool()
-def submit_scores(documents: list[dict[str, Any]]) -> dict[str, Any]:
+def submit_scores(documents: list[dict[str, Any]], lang: str = "") -> dict[str, Any]:
     """Upload score documents (kind=score; same scoreName and market). Re-uploading a date replaces it.
-    Returns the factor reference to use in factorBindings, or {accepted: false, issues}."""
+    Returns the factor reference to use in factorBindings, or {accepted: false, issues}. lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
     try:
-        res = _call(_client().submit_scores, documents)
+        res = _call(_client(lang).submit_scores, documents)
     except Rejected as exc:
         return {"accepted": False, "issues": exc.issues}
     return {"accepted": True, **res}
 
 
 @server.tool()
-def get_evidence(strategy_id: int = 0, artifact_id: int = 0, date_from: str = "", date_to: str = "") -> dict[str, Any]:
+def get_evidence(strategy_id: int = 0, artifact_id: int = 0, date_from: str = "", date_to: str = "", lang: str = "") -> dict[str, Any]:
     """What actually happened when a strategy ran (evidence document): rejections by reason, fill and reject
     rates, slippage against the arrival price, risk hits, fills, and whether signals were evaluated on time.
-    Give strategy_id, or artifact_id for the strategy it was promoted to. Dates are market-local, default last 30 days."""
-    return _call(_client().evidence, strategy_id or None, artifact_id or None, date_from or None, date_to or None)
+    Give strategy_id, or artifact_id for the strategy it was promoted to. Dates are market-local, default last 30 days. lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
+    return _call(_client(lang).evidence, strategy_id or None, artifact_id or None, date_from or None, date_to or None)
 
 
 @server.tool()
-def list_strategies() -> list[dict[str, Any]]:
-    """My existing strategies on the runtime, which export_strategy can turn into AlphaSpec documents."""
-    return _call(_client().strategies)
+def list_strategies(lang: str = "") -> list[dict[str, Any]]:
+    """My existing strategies on the runtime, which export_strategy can turn into AlphaSpec documents. lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
+    return _call(_client(lang).strategies)
 
 
 @server.tool()
-def export_strategy(strategy_id: int) -> dict[str, Any]:
+def export_strategy(strategy_id: int, lang: str = "") -> dict[str, Any]:
     """Export an existing strategy as an AlphaSpec artifact to read, modify and resubmit. Returns
     {document, issues}; errors in issues mean it does not validate as exported. After the modified
-    version passes the gate, promote it with target_strategy_id to update the original."""
-    doc, issues = _call(_client().export_strategy, strategy_id)
+    version passes the gate, promote it with target_strategy_id to update the original. lang is en | zh: the language of messages in the reply -- pass the language you are talking to the user in."""
+    doc, issues = _call(_client(lang).export_strategy, strategy_id)
     return {"document": doc, "issues": issues}
 
 
