@@ -12,6 +12,7 @@
   created disabled for both key kinds.
 - Reference runtime: US equities (`us_equity`) now have the 4 + 1 years of daily history evaluation needs;
   JSON Schema messages are always in English regardless of the server locale.
+- CLI: a `CERTIFICATE_VERIFY_FAILED` error (python.org builds on macOS ship without CA certificates) now prints how to fix it.
 
 ## 0.4.0 — 2026-10-12
 

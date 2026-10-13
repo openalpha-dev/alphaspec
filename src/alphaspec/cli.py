@@ -543,7 +543,17 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     except (AlphaSpecError, OSError, TimeoutError) as exc:
         print(f"runtime error: {exc}", file=sys.stderr)
+        if "CERTIFICATE_VERIFY_FAILED" in str(exc):
+            print(_CERT_HINT, file=sys.stderr)
         return 3
+
+
+# python.org 的 macOS 安装包不带系统根证书，首次访问 HTTPS 必报这一条；用户看不懂，给出修法。
+_CERT_HINT = (
+    "hint: this Python has no CA certificates. On macOS with the python.org installer run\n"
+    "      \"/Applications/Python 3.x/Install Certificates.command\", or:\n"
+    "      pip install certifi && export SSL_CERT_FILE=$(python3 -m certifi)"
+)
 
 
 if __name__ == "__main__":
