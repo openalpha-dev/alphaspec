@@ -205,8 +205,9 @@ if gate["passed"]:
 alphaspec skill --install ~/.claude/skills   # 或者你的 agent 的技能目录
 ```
 
-Skill 教给 agent 一套做法：从示例起步、查目录而不是猜指标名、校验到零错误、如实填写 `searchTrials`、
-不引用执行系统没有返回的数字。
+会装上两个 Skill。`alphaspec` 教 agent 写策略并提交：从示例起步、查目录而不是猜指标名、校验到零错误、
+如实填写 `searchTrials`、不引用执行系统没有返回的数字。`alphaspec-diagnose` 教 agent 根据执行证据诊断
+已经在跑的策略：有没有按时跑、被拒了什么以及怎么改、实际持仓和目标差多少、执行成本多少，最后才判断是不是信号本身的问题。
 
 ### MCP（没有命令行的 agent）
 
@@ -256,7 +257,7 @@ catalog/             带语义的指标目录（中英文）
 conformance/cases/   兼容的执行系统必须一致判定的接受/拒绝用例
 examples/            零问题通过的示例文档
 src/alphaspec/       校验器、命令行、运行时客户端、MCP server
-skills/alphaspec/    Agent Skill
+skills/              Agent Skill（alphaspec、alphaspec-diagnose）
 docs/                字段语义、检查规则、市场、运行时接口
 ```
 

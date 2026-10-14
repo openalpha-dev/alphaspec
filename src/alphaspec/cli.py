@@ -7,7 +7,8 @@
     alphaspec schema KIND                   print a JSON Schema (artifact, score, gate-result, evidence, capabilities, common)
     alphaspec examples [NAME]               list or print example documents
     alphaspec docs NAME                     print a reference document (spec, rules, markets, runtime)
-    alphaspec skill [--install DIR]         print the Agent Skill, or write it to DIR/alphaspec/SKILL.md
+    alphaspec skill [NAME] [--install DIR]  print an Agent Skill (default alphaspec; also alphaspec-diagnose),
+                                            or write every bundled skill (or just NAME) to DIR/<name>/SKILL.md
 
     alphaspec whoami                        check the API key against the runtime
     alphaspec capabilities                  what the runtime can evaluate now (markets, history, quota)
@@ -154,15 +155,24 @@ def _cmd_docs(args: argparse.Namespace) -> int:
     return 0
 
 
+def _skill_names() -> list[str]:
+    return sorted(p.parent.name for p in (data_root() / "skills").glob("*/SKILL.md"))
+
+
 def _cmd_skill(args: argparse.Namespace) -> int:
-    text = (data_root() / "skills" / "alphaspec" / "SKILL.md").read_text(encoding="utf-8")
+    names = _skill_names()
+    if args.name and args.name not in names:
+        print(f"unknown skill {args.name!r}; bundled: {', '.join(names)}", file=sys.stderr)
+        return 2
     if not args.install:
-        print(text, end="")
+        name = args.name or "alphaspec"
+        print((data_root() / "skills" / name / "SKILL.md").read_text(encoding="utf-8"), end="")
         return 0
-    target = Path(args.install).expanduser() / "alphaspec" / "SKILL.md"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(text, encoding="utf-8")
-    print(f"installed {target}")
+    for name in [args.name] if args.name else names:
+        target = Path(args.install).expanduser() / name / "SKILL.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text((data_root() / "skills" / name / "SKILL.md").read_text(encoding="utf-8"), encoding="utf-8")
+        print(f"installed {target}")
     return 0
 
 
@@ -376,9 +386,15 @@ def _cmd_evidence(args: argparse.Namespace) -> int:
     q = ev.get("executionQuality", {})
     print(f"  orders {q.get('orders', 0)} · filled {q.get('fillRatePct', '-')}% · rejected {q.get('rejectRatePct', '-')}%"
           + (f" · slippage avg {q.get('avgSlippageBps')}bp p95 {q.get('p95SlippageBps')}bp ({ev.get('caliber', {}).get('slippageBasis')})"
-             if "avgSlippageBps" in q else ""))
+             if "avgSlippageBps" in q else "")
+          + (f" · live vs paper {q.get('paperVsLiveDiffBps')}bp" if "paperVsLiveDiffBps" in q else ""))
     for r in ev.get("rejects", [])[:10]:
         print(f"  reject {r.get('category'):11} {r.get('code'):28} x{r.get('count')}  {r.get('message', '')[:80]}")
+        if r.get("hint"):
+            print(f"         hint: {r['hint']}")
+    for d in ev.get("targetDeviation", [])[:10]:
+        actual = d.get("actualWeight")
+        print(f"  target {d.get('symbol'):12} {d.get('targetWeight')} -> {'?' if actual is None else actual}  {d.get('reason')}")
     led = ev.get("ledger", [])
     if led:
         print(f"  ledger: {len(led)} fills, last {led[-1].get('ts')} {led[-1].get('side')} {led[-1].get('symbol')}")
@@ -454,9 +470,10 @@ def main(argv: list[str] | None = None) -> int:
     dc.add_argument("name", choices=sorted(_DOCS))
     dc.set_defaults(func=_cmd_docs)
 
-    sk = sub.add_parser("skill", help="print or install the Agent Skill")
+    sk = sub.add_parser("skill", help="print or install the Agent Skills")
+    sk.add_argument("name", nargs="?", help="alphaspec (default) or alphaspec-diagnose")
     sk.add_argument("--install", metavar="DIR",
-                    help="skills directory, e.g. ~/.claude/skills (writes DIR/alphaspec/SKILL.md)")
+                    help="skills directory, e.g. ~/.claude/skills (writes DIR/<name>/SKILL.md for every bundled skill, or just NAME)")
     sk.set_defaults(func=_cmd_skill)
 
     remote = argparse.ArgumentParser(add_help=False)

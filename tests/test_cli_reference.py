@@ -40,20 +40,40 @@ def test_examples_docs_schema_and_explain(capsys):
     assert main(["rules", "--explain", "AS999"]) == 2
 
 
-def test_commands_named_in_skill_exist():
-    skill = (ROOT / "skills" / "alphaspec" / "SKILL.md").read_text(encoding="utf-8")
-    used = set(re.findall(r"`alphaspec ([a-z]+)", skill)) | set(re.findall(r"^\s*alphaspec ([a-z]+)", skill, re.M))
+def _commands_used(name):
+    skill = (ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+    return set(re.findall(r"`alphaspec ([a-z][a-z-]*)", skill)) | set(re.findall(r"^\s*alphaspec ([a-z][a-z-]*)", skill, re.M))
+
+
+@pytest.mark.parametrize("name", ["alphaspec", "alphaspec-diagnose"])
+def test_commands_named_in_skill_exist(name):
+    used = _commands_used(name)
     for cmd in sorted(used):
         with pytest.raises(SystemExit) as e:
             main([cmd, "--help"])
         assert e.value.code == 0, cmd
-    assert {"catalog", "validate", "submit", "examples", "rules"} <= used
+    expected = {"catalog", "validate", "submit", "examples", "rules"} if name == "alphaspec" else {"strategies", "evidence", "result"}
+    assert expected <= used
 
 
-def test_skill_install_writes_the_bundled_skill(tmp_path, capsys):
+@pytest.mark.parametrize("name", ["alphaspec", "alphaspec-diagnose"])
+def test_skill_has_frontmatter_named_after_its_directory(name):
+    text = (ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+    head = text.split("---")[1]
+    assert f"name: {name}\n" in head and "description: " in head
+
+
+def test_skill_install_writes_every_bundled_skill(tmp_path, capsys):
     assert main(["skill", "--install", str(tmp_path)]) == 0
-    written = (tmp_path / "alphaspec" / "SKILL.md").read_text(encoding="utf-8")
-    assert written == (ROOT / "skills" / "alphaspec" / "SKILL.md").read_text(encoding="utf-8")
+    for name in ("alphaspec", "alphaspec-diagnose"):
+        written = (tmp_path / name / "SKILL.md").read_text(encoding="utf-8")
+        assert written == (ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+
+
+def test_skill_prints_by_name_and_rejects_unknown(capsys):
+    assert main(["skill", "alphaspec-diagnose"]) == 0
+    assert "name: alphaspec-diagnose" in capsys.readouterr().out
+    assert main(["skill", "nope"]) == 2
 
 
 def test_every_catalog_text_has_an_english_translation():

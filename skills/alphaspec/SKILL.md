@@ -88,7 +88,7 @@ Stops, sizing and fill timing go in three optional top-level blocks — not in t
 - `FACTOR_AND_RULE`: `dsl.entry` only fires for symbols currently in the top `topN`.
 - The user's own model: upload daily scores with `alphaspec submit-scores scores.jsonl` (kind `score`, one document per date; `null` for no score, never 0), then bind `"factor": "score:<scoreName>"`. The series must cover the factor evaluation window (2 years + 1 year; see `alphaspec capabilities`).
 - Short side: `dsl.shortEntry` / `dsl.shortExit`, only on markets that can be shorted (AS019); `entry` / `exit` stay the long side.
-- After a strategy is promoted and started, `alphaspec evidence --artifact <id>` shows rejections, fills, slippage and whether it ran.
+- After a strategy is promoted and started, `alphaspec evidence --artifact <id>` shows rejections, fills, slippage and whether it ran. To find out why a running strategy is not trading or underperforms, follow the `alphaspec-diagnose` skill.
 
 ## Producer
 

@@ -169,10 +169,39 @@ strategy, keep uploading daily: the rebalance uses the latest scores and will no
 
 `GET /strategies/{id}/evidence` reports, for a date range in the market's calendar: rejections grouped by
 reason code (category from the risk rule that fired; the original message is kept), fill and reject
-rates, slippage against the quote snapshot taken when the order was sent (`VS_ARRIVAL_PRICE`; positive =
-cost), risk hits, up to 500 fills, and `pipeline` — whether the strategy is enabled and whether its
-signals were evaluated on the last trading day. Paper and live orders are both included; `subject.mode`
+rates, slippage against the quote snapshot taken when the order was sent (`VS_ARRIVAL_PRICE`: the
+mid price, or the last price in markets that only publish 1-minute bars; positive = cost), risk hits,
+up to 500 fills, and `pipeline` (see below). Paper and live orders are both included; `subject.mode`
 is `LIVE` if any live order exists.
+
+`pipeline` answers "did it run when it should have", which matters most when nothing happened:
+
+| Stage | Present for | Not OK when |
+|---|---|---|
+| `STRATEGY_ENABLED` | every strategy | the strategy is disabled (`ABSENT`) — promoted strategies start disabled |
+| `SIGNAL_EVALUATION` | rule strategies | signals were last evaluated before the last trading day (`DEGRADED`) or never (`ABSENT`) |
+| `REBALANCE` | factor and score strategies | the latest rebalance was skipped — the violation names the day and the code, e.g. `REBALANCE_WAITING_INPUTS` (daily data not in yet), `REBALANCE_NO_FACTOR_SCORES` (no symbol had a score), `REBALANCE_NO_NAV` (no account value or FX rate) — or its plan did not finish (`PARTIAL_FAILED`, `BLOCKED`, `EXPIRED`); `ABSENT` if it never rebalanced. Rebalances run only on rebalance days, so an older `OK` is not a failure |
+| `SCORE_FEED` | strategies bound to `score:<name>` | a series' latest scores are older than the last trading day (`DEGRADED`), or there are none in the last 30 days (`ABSENT`). The runtime does not trade on stale scores, so a stale feed silently stops rebalancing |
+
+`executionQuality.paperVsLiveDiffBps` is computed from live fills only. For each filled live order it
+compares the average fill price with the price the runtime's paper simulator would have given **the
+same order**: the limit price where no order book is available, otherwise the better of the limit
+price and the opposite best quote in the snapshot (a one-level approximation of the paper book
+walk). Positive = live filled worse than paper would have. Limit orders can only fill at or better
+than their limit, so this number mostly measures price improvement; orders that never filled live
+show up in `fillRatePct`, not here. Market orders (no limit price) are not counted.
+
+For factor and score strategies, `targetDeviation` compares the target portfolio of the **latest
+finished rebalance in the window** with what was actually achieved. Weights are fractions of the
+account's net value when the rebalance was planned (converted to the market's currency), and both
+sides are priced at the same reference price taken at planning time, so a deviation reflects
+quantities that were not achieved, not price moves after the open. Achieved quantity = holdings
+before the rebalance + fills of that rebalance's orders; fills from other sources (stops) are not
+counted. Only symbols whose weight gap is at least 0.1% are listed, largest gap first; a symbol
+with no reference price is listed as `NO_PRICE` without `actualWeight`. `reason` is one of the
+contract's codes; the original rejection message for the same order is in `rejects`. The field is
+omitted when the window has no finished rebalance (rule strategies, or rebalances planned before the
+runtime started recording targets).
 
 ### Updating an existing strategy
 

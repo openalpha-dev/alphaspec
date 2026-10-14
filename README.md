@@ -223,9 +223,12 @@ if gate["passed"]:
 alphaspec skill --install ~/.claude/skills   # or your agent's skills directory
 ```
 
-The skill teaches the agent the workflow: start from an example, look indicators up instead of
-guessing, validate until clean, report `searchTrials` honestly, never quote numbers the runtime did
-not return.
+This installs two skills. `alphaspec` teaches the agent to write and submit strategies: start from an
+example, look indicators up instead of guessing, validate until clean, report `searchTrials` honestly,
+never quote numbers the runtime did not return. `alphaspec-diagnose` teaches it to diagnose a strategy
+that is already running from the runtime's execution evidence: did it run, what was rejected and how
+to fix it, did the holdings match the target, what execution cost, and only then whether the signal
+itself is the problem.
 
 ### MCP (agents without a shell)
 
@@ -282,7 +285,7 @@ catalog/             indicator catalog with semantics (Chinese and English)
 conformance/cases/   accept/reject cases every compliant runtime must agree with
 examples/            documents that pass with zero issues
 src/alphaspec/       validator, CLI, runtime client, MCP server
-skills/alphaspec/    Agent Skill
+skills/              Agent Skills (alphaspec, alphaspec-diagnose)
 docs/                semantics, lint rules, markets, runtime API
 ```
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- New Agent Skill `alphaspec-diagnose`: a step-by-step diagnosis of a running strategy from its evidence
+  (pipeline → rejections → target vs actual holdings → execution cost → the signal last), with who can
+  fix each finding. `alphaspec skill --install DIR` now installs every bundled skill; `alphaspec skill NAME`
+  prints one.
+- Reference runtime evidence (contract unchanged, all fields already in 0.4): `rejects[].hint` says which
+  document field fixes a rejection or that only the user can; `targetDeviation` for factor and score
+  strategies; arrival-price slippage for live orders and `paperVsLiveDiffBps`; `pipeline` stages
+  `REBALANCE` (replaces `SIGNAL_EVALUATION` for factor strategies) and `SCORE_FEED`.
+- CLI `evidence` prints hints, the live-vs-paper gap and target deviations.
+
 ## 0.4.1 — 2026-10-13
 
 - Response language: the runtime agent API answers in English or Chinese (`?lang=` / `Accept-Language`,
