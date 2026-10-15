@@ -11,6 +11,9 @@
   strategies; arrival-price slippage for live orders and `paperVsLiveDiffBps`; `pipeline` stages
   `REBALANCE` (replaces `SIGNAL_EVALUATION` for factor strategies) and `SCORE_FEED`.
 - CLI `evidence` prints hints, the live-vs-paper gap and target deviations.
+- HTTPS works out of the box on Pythons with an empty trust store (python.org macOS installer): the client
+  falls back to certifi's bundle (new dependency) when the system store has no certificates; `SSL_CERT_FILE` /
+  `SSL_CERT_DIR` still take precedence.
 
 ## 0.4.1 — 2026-10-13
 

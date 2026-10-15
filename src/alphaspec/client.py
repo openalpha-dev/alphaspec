@@ -12,12 +12,32 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
 import time
 import urllib.error
 import urllib.request
 from typing import Any
 
 from .validate import Report, validate
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """The system trust store, or certifi's bundle when the system store is empty.
+
+    Python from the python.org macOS installer ships without CA certificates, so every HTTPS call fails
+    with CERTIFICATE_VERIFY_FAILED until the user runs "Install Certificates.command". A system store that
+    loaded any certificate is kept as is (corporate CAs live there); SSL_CERT_FILE / SSL_CERT_DIR still win.
+    """
+    ctx = ssl.create_default_context()
+    if os.environ.get("SSL_CERT_FILE") or os.environ.get("SSL_CERT_DIR"):
+        return ctx
+    if ctx.cert_store_stats().get("x509_ca", 0) == 0:
+        try:
+            import certifi
+            ctx.load_verify_locations(cafile=certifi.where())
+        except ImportError:
+            pass
+    return ctx
 from ._resources import default_lang
 
 API_PREFIX = "/api/agent/v1"
@@ -199,7 +219,7 @@ class Client:
             },
         )
         try:
-            with urllib.request.urlopen(req, timeout=timeout or self.timeout) as resp:
+            with urllib.request.urlopen(req, timeout=timeout or self.timeout, context=_ssl_context()) as resp:
                 return resp.status, _decode(resp.read())
         except urllib.error.HTTPError as e:
             payload = _decode(e.read())
