@@ -14,8 +14,9 @@ everywhere outside this prefix.
 
 Two kinds of key holders (`whoami.tenantType`):
 
-- `CONSUMER` — an individual user's own key (created in their profile). Promotion follows the
-  consumer product's rules (plan, indicator tiers, market whitelist).
+- `CONSUMER` — an individual user's own key (created in their profile; sign in with GitHub if you have
+  no mainland-China phone number). Promotion follows the consumer product's rules (plan, indicator tiers),
+  on every enabled market.
 - `INSTITUTION` — one agent for a whole institution tenant, issued by its administrators. The key
   acts as an ordinary user of that tenant: every enabled market can be promoted, no plan limits.
 
@@ -63,8 +64,10 @@ The reference runtime's rules:
   index datasets cover A-shares only); `ext.l2` nowhere (it needs order-book data a bar backtest does not have).
 - Out-of-sample benchmark: CSI 300 for `cn_stock`, `cn_etf`, `cn_convbond`; other markets are judged on an
   absolute Sharpe floor.
-- Promotable markets: `cn_stock`, `cn_etf`, `cn_convbond`. Other evaluable markets return a gate result
-  but cannot be promoted.
+- Promotable markets: every enabled market (`alphaspec capabilities` lists them). Promotion does not check
+  whether the runtime has live prices for your symbols: a promoted strategy whose orders find no price
+  shows them as `NO_PRICE` in its evidence. Evaluation coverage (history long enough for the windows)
+  is reported separately per market and timeframe.
 
 ### Checks at submission
 
