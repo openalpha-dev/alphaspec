@@ -38,6 +38,10 @@ CAPS = {
          "indicatorProfiles": ["core", "ext.cn"], "promotable": True, "benchmark": {"code": "000300.SH", "name": "CSI 300"}},
         {"id": "us_equity", "evaluation": {"daily": {"timeframes": ["1d"], "evaluable": False, "reason": "daily bars from 2026-04-02"}},
          "indicatorProfiles": ["core"], "promotable": False, "benchmark": None},
+        {"id": "hk_stock", "evaluation": {"daily": {"timeframes": ["1d"], "evaluable": True}},
+         "indicatorProfiles": ["core"], "promotable": True, "accountReady": False,
+         "accountNote": "the user has no paper account for this market yet",
+         "benchmark": {"code": "HSI", "name": "Hang Seng Index"}},
     ],
 }
 
@@ -230,6 +234,19 @@ def test_capabilities_document_validates_and_prints(runtime, capsys):
     assert main(["capabilities"]) == 0
     out = capsys.readouterr().out
     assert "us_equity" in out and "daily bars from 2026-04-02" in out and "evaluations today 2/10" in out
+    assert "promotable once the user adds an account" in out and "Hang Seng Index" in out
+
+
+def test_runtime_error_message_carries_code_and_hint():
+    from alphaspec.client import AlphaSpecError
+    e = AlphaSpecError(409, {"code": "ACCOUNT_REQUIRED", "marketId": "us_equity",
+                             "message": "us_equity has no simulated account yet",
+                             "hint": "Only the user can open accounts"})
+    assert e.code == "ACCOUNT_REQUIRED"
+    assert str(e) == ("HTTP 409: ACCOUNT_REQUIRED: us_equity has no simulated account yet "
+                      "(hint: Only the user can open accounts)")
+    assert AlphaSpecError(400, {"message": "bad"}).code is None
+    assert str(AlphaSpecError(400, {"message": "bad"})) == "HTTP 400: bad"
 
 
 def test_export_then_promote_as_new_version(runtime, capsys, tmp_path):

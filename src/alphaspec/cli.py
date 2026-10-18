@@ -315,7 +315,12 @@ def _cmd_capabilities(args: argparse.Namespace) -> int:
         for tier in ("daily", "intraday"):
             t = tiers.get(tier) or {}
             cells.append(f"{tier} {'yes' if t.get('evaluable') else 'no'}")
-        promote = "promotable" if m.get("promotable") else "evaluate only"
+        if not m.get("promotable"):
+            promote = "evaluate only"
+        elif m.get("accountReady") is False:
+            promote = "promotable once the user adds an account"
+        else:
+            promote = "promotable"
         bench = (m.get("benchmark") or {}).get("name") or "no benchmark"
         print(f"  {m.get('id'):12} {' · '.join(cells)} · {promote} · {bench} · profiles {', '.join(m.get('indicatorProfiles', []))}")
         for tier in ("daily", "intraday"):

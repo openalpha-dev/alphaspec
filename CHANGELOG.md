@@ -1,7 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.4.2 — 2026-10-18
 
+- Reference runtime, consumer keys: one paper account per market. Promote on a market the user has no account
+  for returns `409 {code: ACCOUNT_REQUIRED, marketId, message, hint}` (only the user can add the account, in the
+  app); `capabilities` marks each promotable market with `accountReady` / `accountNote` for the caller.
+  Promotable markets for consumer keys are the app's open market groups (crypto and other ungrouped markets
+  can be evaluated but not promoted).
+- Reference runtime: out-of-sample benchmark S&P 500 for `us_equity` and Hang Seng Index for `hk_stock`
+  (was an absolute Sharpe floor); `capabilities.markets[].benchmark` names it.
+- Schema 0.4 `capabilities`: optional `accountReady` and `accountNote` on a market.
+- Client: `AlphaSpecError` messages carry the runtime's `code` and `hint`, so the CLI and MCP tools show who
+  can fix an error; `AlphaSpecError.code`. CLI `capabilities` prints "promotable once the user adds an account".
 - New Agent Skill `alphaspec-diagnose`: a step-by-step diagnosis of a running strategy from its evidence
   (pipeline → rejections → target vs actual holdings → execution cost → the signal last), with who can
   fix each finding. `alphaspec skill --install DIR` now installs every bundled skill; `alphaspec skill NAME`

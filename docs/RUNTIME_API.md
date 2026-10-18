@@ -16,7 +16,9 @@ Two kinds of key holders (`whoami.tenantType`):
 
 - `CONSUMER` — an individual user's own key (created in their profile; sign in with GitHub if you have
   no mainland-China phone number). Promotion follows the consumer product's rules (plan, indicator tiers),
-  on every enabled market.
+  on the markets the consumer app offers (A-shares with ETFs and convertible bonds, plus the US, Hong Kong
+  and futures groups when they are open). Each of those markets has its own paper account: until the user
+  adds one in the app, promote on that market returns `409 ACCOUNT_REQUIRED`.
 - `INSTITUTION` — one agent for a whole institution tenant, issued by its administrators. The key
   acts as an ordinary user of that tenant: every enabled market can be promoted, no plan limits.
 
@@ -38,7 +40,7 @@ tools take a `lang` argument. Your own document text (names, descriptions) is ne
 | `GET /artifacts` | 200 your submissions, newest first, with the latest verdict | |
 | `POST /artifacts/{id}/evaluate` | 202 `{evaluationId, status}` | 422 `{issues}` the runtime cannot run it (not counted against the quota) · 429 daily evaluation quota used up · 503 queue full |
 | `GET /artifacts/{id}/gate-result` | 200 `gate-result` document | 202 still running · 409 `{status: FAILED, error}` |
-| `POST /artifacts/{id}/promote` — body optional: `{name, targetStrategyId}` | 201 `{strategyId, created, enabled: false}` · 200 if already promoted · 200 `{updated: true}` with `targetStrategyId` | 400 gate not passed, market not promotable, or target's market / universe differs · runtime product rules (pool size, names) apply as in its UI |
+| `POST /artifacts/{id}/promote` — body optional: `{name, targetStrategyId}` | 201 `{strategyId, created, enabled: false}` · 200 if already promoted · 200 `{updated: true}` with `targetStrategyId` | 400 gate not passed, market not promotable, or target's market / universe differs · 409 `{code: ACCOUNT_REQUIRED, marketId, message, hint}` the user has no paper account for that market yet — only the user can add one in the app, then promote again · runtime product rules (pool size, names) apply as in its UI |
 | `GET /strategies` | 200 your existing strategies | |
 | `GET /strategies/{id}/evidence?from&to` | 200 `evidence` document (contract 0.4) for one of your strategies | 400 bad dates (max one year) |
 | `GET /artifacts/{id}/evidence?from&to` | 200 `evidence` of the strategy the artifact was promoted to | 400 not promoted |
@@ -62,9 +64,13 @@ The reference runtime's rules:
   have months, not years, of history and are declared not evaluable until it is backfilled.
 - Indicator profiles: `core` everywhere; `ext.cn` on `cn_*`; `ext.data` on `cn_stock` (the fundamentals and
   index datasets cover A-shares only); `ext.l2` nowhere (it needs order-book data a bar backtest does not have).
-- Out-of-sample benchmark: CSI 300 for `cn_stock`, `cn_etf`, `cn_convbond`; other markets are judged on an
-  absolute Sharpe floor.
-- Promotable markets: every enabled market (`alphaspec capabilities` lists them). Promotion does not check
+- Out-of-sample benchmark: CSI 300 for `cn_stock`, `cn_etf`, `cn_convbond`; S&P 500 (`SPX`) for `us_equity`;
+  Hang Seng Index (`HSI`) for `hk_stock`. Other markets (futures, options, crypto) are judged on an absolute
+  Sharpe floor, and so is any period the index has no data for.
+- Promotable markets: institution keys, every enabled market; consumer keys, the markets of the consumer
+  app's open market groups (`alphaspec capabilities` lists them). For consumer keys each promotable market
+  also carries `accountReady` for the caller: `false` means the user has not added a paper account for that
+  market yet (`accountNote` says so) — evaluate freely, but promote waits for the user. Promotion does not check
   whether the runtime has live prices for your symbols: a promoted strategy whose orders find no price
   shows them as `NO_PRICE` in its evidence. Evaluation coverage (history long enough for the windows)
   is reported separately per market and timeframe.

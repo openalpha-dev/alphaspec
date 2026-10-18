@@ -50,7 +50,19 @@ class AlphaSpecError(Exception):
         self.status = status
         self.body = body
         detail = body.get("message") if isinstance(body, dict) else None
+        if isinstance(body, dict) and detail:
+            # Machine-readable code and the runtime's advice (who can fix it) travel with the message,
+            # so the CLI and MCP tools show them without special-casing each error.
+            if body.get("code"):
+                detail = f"{body['code']}: {detail}"
+            if body.get("hint"):
+                detail = f"{detail} (hint: {body['hint']})"
         super().__init__(message or f"HTTP {status}: {detail or body}")
+
+    @property
+    def code(self) -> str | None:
+        """The runtime's error code when it sent one (e.g. ``ACCOUNT_REQUIRED``)."""
+        return self.body.get("code") if isinstance(self.body, dict) else None
 
 
 class Rejected(AlphaSpecError):

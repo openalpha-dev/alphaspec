@@ -110,6 +110,7 @@ alphaspec promote <artifactId>           # only after the gate passed; creates a
 - Exit code 1 = rejected, gate not passed or evaluation failed. Read the printed checks and hints, change the document, submit it again as a new artifact and count it in `searchTrials`.
 - Evaluations have a daily quota. Do not loop submissions hunting for a passing variant; that is exactly the search luck the gate corrects for.
 - Never state backtest numbers the runtime did not return. After `promote`, tell the user the strategy is created disabled and they start it themselves.
+- `promote` fails with `ACCOUNT_REQUIRED` when the user has no paper account for that market (`capabilities` shows `accountReady: false` beforehand). You cannot open one: tell the user to add the account in the runtime's app ("Choose market"), then promote the same artifact again — do not resubmit or re-evaluate.
 - Full API and status codes: `alphaspec docs runtime`.
 
 ## Never

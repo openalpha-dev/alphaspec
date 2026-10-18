@@ -209,6 +209,13 @@
         "promotableReason": {
           "type": "string"
         },
+        "accountReady": {
+          "type": "boolean",
+          "description": "Per caller: whether the caller already has a paper account for this market. When false, promote is refused with ACCOUNT_REQUIRED until the user adds one in the runtime's app; an agent cannot open accounts. Absent when the runtime does not track per-market accounts."
+        },
+        "accountNote": {
+          "type": "string"
+        },
         "benchmark": {
           "type": [
             "object",
