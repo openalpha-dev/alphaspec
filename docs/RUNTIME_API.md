@@ -91,7 +91,7 @@ and do not use the evaluation quota.
 | `RUNTIME_NOT_PROMOTABLE` | warning | evaluable, but a passing strategy cannot be promoted on this runtime |
 | `RUNTIME_SIGNAL_MODE_UNSUPPORTED` | error | `FACTOR_OR_RULE` (the reference runtime supports `FACTOR_ONLY` and `FACTOR_AND_RULE`) |
 | `RUNTIME_TIMEFRAME` | error | a factor strategy on a timeframe other than `1d` |
-| `RUNTIME_SETTING_UNSUPPORTED` | error | `exits` / `sizing` / `execution` on a `FACTOR_ONLY` strategy (its backtest rebalances by `ranking` and would ignore them, while live stops would not) |
+| `RUNTIME_SETTING_UNSUPPORTED` | error | `sizing` / `execution` on a `FACTOR_ONLY` strategy (positions are sized by `ranking`, use `ranking.maxWeightPct`; fills happen at the rebalance close). `exits` are allowed: the backtest checks them on every close, the same rule the live stop engine applies |
 | `RUNTIME_UNIVERSE_TOO_SMALL` | error | a factor strategy on fewer than 5 listed symbols |
 | `RUNTIME_FACTOR_UNKNOWN` / `RUNTIME_FACTOR_AMBIGUOUS` / `RUNTIME_FACTOR_LOCKED` | error | the factor is not in your library, exists both as a global and as your own factor (write `global:CODE` or `tenant:CODE`), or needs a higher plan |
 | `RUNTIME_FACTOR_HISTORY` | error | a global factor or score series does not cover the factor evaluation window |

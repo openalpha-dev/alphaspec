@@ -83,7 +83,7 @@ Stops, sizing and fill timing go in three optional top-level blocks — not in t
 
 ## Factor strategies and score series (contract 0.4)
 
-- Hold the top-ranked symbols instead of waiting for a rule: `"signalMode": "FACTOR_ONLY"`, `factorBindings` and `ranking` (example `alphaspec examples 07-factor`). No `dsl`, and no `exits` / `sizing` / `execution` (rejected for FACTOR_ONLY).
+- Hold the top-ranked symbols instead of waiting for a rule: `"signalMode": "FACTOR_ONLY"`, `factorBindings` and `ranking` (example `alphaspec examples 07-factor`). No `dsl`, `sizing` or `execution` (rejected for FACTOR_ONLY). `exits` work: a holding that hits a stop is sold at that close and bought back at the next rebalance if it still ranks in the top N.
 - Find factor codes with `alphaspec factors --search <word>`; never invent them. If a code exists both globally and as the user's own factor, write `global:CODE` or `tenant:CODE`.
 - `FACTOR_AND_RULE`: `dsl.entry` only fires for symbols currently in the top `topN`.
 - The user's own model: upload daily scores with `alphaspec submit-scores scores.jsonl` (kind `score`, one document per date; `null` for no score, never 0), then bind `"factor": "score:<scoreName>"`. The series must cover the factor evaluation window (2 years + 1 year; see `alphaspec capabilities`).

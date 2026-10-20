@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.3 — 2026-10-20
+
+- Reference runtime: `FACTOR_ONLY` strategies accept `exits`. The factor backtest now checks stop loss, take
+  profit, trailing stop, ATR exits, `noNewHighDays` and `minHoldDays` on every close, the same rule the live
+  stop engine applies: a holding that hits an exit is sold at that close, is not bought back the same day, and
+  is bought back at the next rebalance if it still ranks in the top N. `sizing` and `execution` remain
+  rejected for `FACTOR_ONLY` (`RUNTIME_SETTING_UNSUPPORTED`); cap positions with `ranking.maxWeightPct`.
+- Reference runtime: the daily evaluation quota is shared between API-key submissions and the app's own
+  AI Research ("platform evaluation"); submissions from the app show `producer.name`
+  `easyquant-ai-research@…`.
+- Docs: `RUNTIME_API.md` and the `alphaspec` skill updated accordingly.
+
 ## 0.4.2 — 2026-10-18
 
 - Reference runtime, consumer keys: one paper account per market. Promote on a market the user has no account
